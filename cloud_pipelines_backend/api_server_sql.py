@@ -15,7 +15,7 @@ class ApiServiceError(RuntimeError):
 
 
 def _get_current_time() -> datetime.datetime:
-    return datetime.datetime.now(tz=datetime.UTC)
+    return datetime.datetime.now(tz=datetime.timezone.utc)
 
 
 from . import component_structures as structures
