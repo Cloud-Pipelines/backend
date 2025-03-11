@@ -20,7 +20,7 @@ except ImportError:
 IdType: typing.TypeAlias = int
 
 
-class ContainerExecutionStatus(enum.StrEnum):
+class ContainerExecutionStatus(str, enum.Enum):
     INVALID = "INVALID"  # Compatibility with Vertex AI CustomJob
     UNINITIALIZED = "UNINITIALIZED"
     CREATED = "CREATED"  # Before WAITING_FOR_UPSTREAM or STARTING
