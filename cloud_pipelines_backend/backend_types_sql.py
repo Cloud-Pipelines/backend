@@ -1,0 +1,409 @@
+import dataclasses
+import datetime
+import enum
+import typing
+from typing import Any, Optional
+
+
+import pydantic
+import pydantic.alias_generators
+
+import sqlalchemy
+import sqlalchemy as sql
+from sqlalchemy import orm
+
+try:
+    from . import component_structures as structures
+except ImportError:
+    from cloud_pipelines_backend import component_structures as structures
+
+IdType: typing.TypeAlias = int
+
+
+class ContainerExecutionStatus(enum.StrEnum):
+    INVALID = "INVALID"  # Compatibility with Vertex AI CustomJob
+    UNINITIALIZED = "UNINITIALIZED"
+    CREATED = "CREATED"  # Before WAITING_FOR_UPSTREAM or STARTING
+    WAITING_FOR_UPSTREAM = "WAITING_FOR_UPSTREAM"
+    STARTING = "STARTING"
+    RUNNING = "RUNNING"
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
+    UPSTREAM_FAILED = "UPSTREAM_FAILED"
+    CONDITIONALLY_SKIPPED = "CONDITIONALLY_SKIPPED"
+    SYSTEM_ERROR = "SYSTEM_ERROR"
+
+    # new
+    READY_TO_START = "READY_TO_START"  # Input artifacts ready, but no job ID
+    CANCELLING = "CANCELLING"
+    CANCELLED = "CANCELLED"
+    UPSTREAM_FAILED_OR_SKIPPED = "UPSTREAM_FAILED_OR_SKIPPED"
+
+
+# def dataclass_from_dict(klass, json_dict):
+#     try:
+#         fieldtypes = klass.__annotations__
+#         return klass(**{f: dataclass_from_dict(fieldtypes[f], json_dict[f]) for f in json_dict})
+#     except AttributeError:
+#         if isinstance(json_dict, (tuple, list)):
+#             return [dataclass_from_dict(klass.__args__[0], f) for f in json_dict]
+#         return json_dict
+
+
+_default_pydantic_config = pydantic.ConfigDict(
+    # component.yaml uses camelCase, but I prefer snake_case for JSON.
+    # alias_generator=pydantic.alias_generators.to_camel,
+    validate_assignment=True,
+)
+
+
+class _BaseModel:
+    # Cannot refer to the derived class and referring to the base class does not work
+    # _serialized_names = {}
+    # __pydantic_config__ = pydantic.ConfigDict(
+    #     alias_generator=lambda s: _BaseModel._serialized_names.get(s) or pydantic.alias_generators.to_camel(s),
+    #     validate_assignment=True,
+    # )
+    __pydantic_config__ = _default_pydantic_config
+
+    def to_dict(self) -> dict[str, Any]:
+        return pydantic.TypeAdapter(type(self)).dump_python(
+            self,
+            mode="json",
+            by_alias=True,
+            exclude_defaults=True,
+        )
+
+    @classmethod
+    def from_dict(cls, d: dict):
+        # Parsing dict to dataclass requires strict=False
+        # https://docs.pydantic.dev/latest/errors/validation_errors/#dataclass_exact_type
+        # return pydantic.TypeAdapter(cls).validate_python(d, strict=True)
+        return pydantic.TypeAdapter(cls).validate_python(d)
+
+
+# # Needed to put a union type into DB
+# class SqlIOTypeStruct(_BaseModel):
+#     type: structures.TypeSpecType
+# No. We'll represent TypeSpecType as name:str + properties:dict
+# Supported cases:
+# * type: "name"
+# * type: {"name": {...}}
+# We drop support for following cases:
+# * `type: [...]`
+# * `type: {"a": ..., "b": ...}`cases
+# If needed they can be represented using `weirdType: ...`
+
+
+# For CreatePipelineRun
+@dataclasses.dataclass
+# class PipelineSpec(_BaseModel):
+class CreatePipelineRunRequest(_BaseModel):
+    root_task: structures.TaskSpec
+    # Component library to avoid repeating component specs inside task specs
+    components: Optional[list[structures.ComponentReference]] = None
+    annotations: Optional[dict[str, Any]] = None
+
+
+# class _TableBase(orm.DeclarativeBase):
+class _TableBase(orm.MappedAsDataclass, orm.DeclarativeBase, kw_only=True):
+    # Not really needed due to kw_only=True
+    _: dataclasses.KW_ONLY
+
+    type_annotation_map = {
+        dict: sql.JSON,
+        list: sql.JSON,
+        # List: sql.JSON,
+        # List[int]: sql.JSON,
+        list[int]: sql.JSON,
+        list[str]: sql.JSON,
+        # List[DataVersionDict]: sql.JSON,
+        dict[str, Any]: sql.JSON,
+        # structures._BaseModel: sql.JSON,
+        # structures.ComponentSpec: sql.JSON,
+        # structures.TaskSpec: sql.JSON,
+        # structures.TypeSpecType: sql.JSON,  # !!! Gotcha. This causes str map to JSON
+        # SqlIOTypeStruct: sql.JSON,
+        # PipelineSpec: sql.JSON,
+    }
+
+
+# ! Note: Set repr=False in most relationships.
+# When a relationship has repr=True (default), printing the object causes DB queries (potentially deep) to fetch the related entities.
+
+
+class PipelineRun(_TableBase):
+    __tablename__ = "pipeline_run"
+    id: orm.Mapped[int] = orm.mapped_column(primary_key=True, init=False)
+    # pipeline_spec: orm.Mapped[dict[str, Any]]
+    root_execution_id: orm.Mapped[IdType] = orm.mapped_column(
+        sql.ForeignKey("execution_node.id"), init=False
+    )
+    root_execution: orm.Mapped["ExecutionNode"] = orm.relationship(repr=False)
+    annotations: orm.Mapped[dict[str, Any] | None] = orm.mapped_column(default=None)
+    # status: "PipelineJobStatus"
+    # root_execution_summary: "ExecutionSummary"
+    created_by: orm.Mapped[str | None] = orm.mapped_column(default=None)
+    created_at: orm.Mapped[datetime.datetime | None] = orm.mapped_column(default=None)
+    updated_at: orm.Mapped[datetime.datetime | None] = orm.mapped_column(default=None)
+    # start_time: datetime.datetime | None = None
+    # end_time: datetime.datetime | None = None
+    # For version control. We can calculate diff and draw a pipeline evolution graph.
+    # Can be stored in annotations though.
+    parent_pipeline_id: orm.Mapped[IdType | None] = orm.mapped_column(default=None)
+
+    extra_data: orm.Mapped[dict[str, Any] | None] = orm.mapped_column(default=None)
+
+
+class ArtifactData(_TableBase):
+    __tablename__ = "artifact_data"
+    id: orm.Mapped[IdType] = orm.mapped_column(primary_key=True, init=False)
+    total_size: orm.Mapped[int]
+    is_dir: orm.Mapped[bool]
+    hash: orm.Mapped[str]
+    # At least one of `uri` or `value` must be set
+    uri: orm.Mapped[str | None] = orm.mapped_column(default=None)
+    # Small constant value
+    value: orm.Mapped[str | None] = orm.mapped_column(default=None)
+    created_at: orm.Mapped[datetime.datetime | None] = orm.mapped_column(default=None)
+    # TODO: Think about a race condition where an artifact is purged right when it's going to be reused.
+    deleted_at: orm.Mapped[datetime.datetime | None] = orm.mapped_column(default=None)
+
+    extra_data: orm.Mapped[dict[str, Any] | None] = orm.mapped_column(default=None)
+
+
+class ArtifactNode(_TableBase):
+    __tablename__ = "artifact_node"
+    id: orm.Mapped[IdType] = orm.mapped_column(primary_key=True, init=False)
+    had_data_in_past: orm.Mapped[bool] = orm.mapped_column(default=False)
+    may_have_data_in_future: orm.Mapped[bool] = orm.mapped_column(default=True)
+    # artifact_type: orm.Mapped[structures.TypeSpecType | None]
+    type_name: orm.Mapped[str | None] = orm.mapped_column(default=None)
+    type_properties: orm.Mapped[dict[str, Any] | None] = orm.mapped_column(default=None)
+    # producer: ExecutionOutputArtifactSource | None = None
+    producer_execution_id: orm.Mapped[IdType | None] = orm.mapped_column(
+        sql.ForeignKey("execution_node.id"), init=False
+    )
+    producer_execution: orm.Mapped["ExecutionNode | None"] = orm.relationship(
+        # back_populates="output_artifacts",
+        default=None,
+        repr=False,
+    )
+    producer_output_name: orm.Mapped[str | None] = orm.mapped_column(default=None)
+    # artifact_data: ArtifactData | None = None
+    artifact_data_id: orm.Mapped[IdType | None] = orm.mapped_column(
+        sql.ForeignKey("artifact_data.id"), init=False
+    )
+    artifact_data: orm.Mapped[ArtifactData | None] = orm.relationship(
+        default=None, repr=False
+    )
+
+    upstream_execution_links: orm.Mapped[list["OutputArtifactLink"]] = orm.relationship(
+        back_populates="artifact", default_factory=list, repr=False
+    )
+    downstream_execution_links: orm.Mapped[list["InputArtifactLink"]] = (
+        orm.relationship(back_populates="artifact", default_factory=list, repr=False)
+    )
+
+    # x_producer_execution_output_link_id: orm.Mapped[IdType | None]
+    # x_producer_execution_output_link: orm.Mapped["SqlOutputArtifactLink | None"] = (
+    #     orm.relationship(back_populates="artifact")
+    # )
+    extra_data: orm.Mapped[dict[str, Any] | None] = orm.mapped_column(default=None)
+
+
+class InputArtifactLink(_TableBase):
+    __tablename__ = "input_artifact_link"
+    execution_id: orm.Mapped[IdType] = orm.mapped_column(
+        sql.ForeignKey("execution_node.id"), primary_key=True, init=False
+    )
+    input_name: orm.Mapped[str] = orm.mapped_column(primary_key=True)
+    artifact_id: orm.Mapped[IdType] = orm.mapped_column(
+        sql.ForeignKey("artifact_node.id"), init=False
+    )
+
+    execution: orm.Mapped["ExecutionNode"] = orm.relationship(
+        back_populates="input_artifact_links"
+    )
+    artifact: orm.Mapped[ArtifactNode] = orm.relationship(
+        back_populates="downstream_execution_links"
+    )
+    # Should we include artifact node status here?
+
+
+class OutputArtifactLink(_TableBase):
+    __tablename__ = "output_artifact_link"
+    execution_id: orm.Mapped[IdType] = orm.mapped_column(
+        sql.ForeignKey("execution_node.id"), primary_key=True, init=False
+    )
+    output_name: orm.Mapped[str] = orm.mapped_column(primary_key=True)
+    artifact_id: orm.Mapped[IdType] = orm.mapped_column(
+        sql.ForeignKey("artifact_node.id"), init=False
+    )
+
+    execution: orm.Mapped["ExecutionNode"] = orm.relationship(
+        back_populates="output_artifact_links"
+    )
+    artifact: orm.Mapped[ArtifactNode] = orm.relationship(
+        back_populates="upstream_execution_links"
+    )
+    # Should we include artifact node status here?
+
+
+class ExecutionToAncestorExecutionLink(_TableBase):
+    __tablename__ = "execution_ancestor"
+    ancestor_execution_id: orm.Mapped[IdType] = orm.mapped_column(
+        sql.ForeignKey("execution_node.id"), primary_key=True, init=False
+    )
+    execution_id: orm.Mapped[IdType] = orm.mapped_column(
+        sql.ForeignKey("execution_node.id"), primary_key=True, init=False
+    )
+    ancestor_execution: orm.Mapped["ExecutionNode"] = orm.relationship(
+        foreign_keys=[ancestor_execution_id]
+    )
+    execution: orm.Mapped["ExecutionNode"] = orm.relationship(
+        foreign_keys=[execution_id]
+    )
+
+
+# ! Problem: With MongoDB, multiple executions can have same output artifact
+# (e.g. graph execution returning artifact produced by a container execution).
+# But it's now not possible since ArtifactNode can only link to a single producer execution.
+# So we need to jump through extra hoops to make the relationship many-to-many again.
+class ExecutionNode(_TableBase):
+    __tablename__ = "execution_node"
+    id: orm.Mapped[IdType] = orm.mapped_column(primary_key=True, init=False)
+    # input_artifacts
+    # task_id: str | None = None
+    # task_spec: structures.TaskSpec
+    # task_spec: orm.Mapped[structures.TaskSpec]
+    task_spec: orm.Mapped[dict[str, Any]]
+    # input_arguments: dict[str, ArtifactNode]
+
+    constant_arguments: orm.Mapped[dict[str, Any] | None] = orm.mapped_column(default=None)  # dict[str, ArtifactData]
+
+    input_artifact_links: orm.Mapped[list[InputArtifactLink]] = orm.relationship(
+        back_populates="execution",
+        init=False,
+        default_factory=list,
+        repr=False,
+    )
+    # outputs: dict[str, ArtifactNode]
+    # output_artifacts: dict[str, ArtifactNodeWithOptionalId]  # Or should we use IDs?
+    output_artifact_links: orm.Mapped[list[OutputArtifactLink]] = orm.relationship(
+        back_populates="execution",
+        init=False,
+        default_factory=list,
+        repr=False,
+    )
+
+    parent_execution_id: orm.Mapped[IdType | None] = orm.mapped_column(
+        sql.ForeignKey("execution_node.id"), default=None, init=False
+    )
+    task_id_in_parent_execution: orm.Mapped[str | None] = orm.mapped_column(default=None)
+    # !!! remote_side=[id] is important. Without it, the relationship somehow works the opposite way.
+    parent_execution: orm.Mapped["ExecutionNode"] = orm.relationship(
+        remote_side=[id], back_populates="child_executions", default=None, repr=False,
+    )
+    # parent_execution: "SqlExecutionNode" = sqlmodel.Relationship()
+    child_executions: orm.Mapped[list["ExecutionNode"]] = orm.relationship(
+        remote_side=[parent_execution_id], back_populates="parent_execution",  default_factory=list, init=False, repr=False,
+    )
+
+    # updated_at: orm.Mapped[datetime.datetime | None] = orm.mapped_column(default=None)
+
+    # execution_kind = orm.Mapped[typing.Literal["CONTAINER", "GRAPH"]]
+
+    # Graph nodes only
+    # child_task_execution_nodes: dict[str, "ExecutionNode"] | None = None
+    # child_task_execution_node_ids: dict[str, str] | None = None
+    # graph_execution_details: GraphExecutionDetails | None = None
+    # graph_execution_details__child_task_execution_node_ids: dict[str, str]
+    # graph_execution_details__child_task_execution_links: list["SqlExecutionToChildExecutionLink"] = sqlmodel.Relationship(back_populates="parent_execution_id")
+    # graph_execution_details__child_task_execution_nodes: list["SqlExecutionNode"] = sqlmodel.Relationship()
+    # graph_execution_details__child_execution_summaries: dict[str, ExecutionSummary]
+
+    # Container nodes only
+    # container_execution_id: str | None = None
+    # container_execution_details: ContainerExecutionDetails | None = None
+    # container_execution_details__status: ContainerExecutionStatus
+    # container_execution_details__container_execution_id: orm.Mapped[IdType | None]
+    # container_execution_details__last_processed_time: datetime.datetime | None = None
+    # container_execution_details__cache_key: str | None = None
+    container_execution_id: orm.Mapped[IdType | None] = orm.mapped_column(
+        sql.ForeignKey("container_execution.id"), default=None, init=False
+    )
+    container_execution: orm.Mapped["ContainerExecution"] = orm.relationship(
+        default=None, repr=False
+    )
+    # TODO: Do we need this? It's denormalized.
+    container_execution_status: orm.Mapped[ContainerExecutionStatus | None] = orm.mapped_column(default=None)
+    container_execution_cache_key: orm.Mapped[str | None] = orm.mapped_column(default=None)
+
+    # ? UX-only de-normalized
+    # For breadcrumbs navigation
+    # parent_execution_node_ids: list[str] | None = None
+    # For breadcrumbs navigation
+    # parent_task_ids: list[str] | None = None
+
+    # ! Cannot have pipeline_run_id foreign key since it will cause circular referencing with PipelineJob
+    # pipeline_run_id: orm.Mapped[IdType | None] = orm.mapped_column(
+    #     sql.ForeignKey("pipeline_run.id")
+    # )
+
+    extra_data: orm.Mapped[dict[str, Any] | None] = orm.mapped_column(default=None)
+
+    ancestors: orm.Mapped[list["ExecutionNode"]] = orm.relationship(
+        secondary=ExecutionToAncestorExecutionLink.__table__,
+        primaryjoin=id == ExecutionToAncestorExecutionLink.execution_id,
+        secondaryjoin=id == ExecutionToAncestorExecutionLink.ancestor_execution_id,
+        viewonly=True,
+        default_factory=list,
+        init=False,
+        repr=False,
+    )
+    descendants: orm.Mapped[list["ExecutionNode"]] = orm.relationship(
+        secondary=ExecutionToAncestorExecutionLink.__table__,
+        primaryjoin=id == ExecutionToAncestorExecutionLink.ancestor_execution_id,
+        secondaryjoin=id == ExecutionToAncestorExecutionLink.execution_id,
+        viewonly=True,
+        default_factory=list,
+        init=False,
+        repr=False,
+    )
+
+
+# Not needed. We can use the ExecutionToAncestorExecutionLink.ancestor_execution_id == PipelineRun.root_execution_id
+# class ExecutionToPipelineRunLink(_TableBase):
+#     __tablename__ = "execution_pipeline_run"
+#     execution_id: orm.Mapped[IdType] = orm.mapped_column(
+#         sql.ForeignKey("execution_node.id"), primary_key=True, init=False
+#     )
+#     pipeline_run_id: orm.Mapped[IdType] = orm.mapped_column(
+#         sql.ForeignKey("pipeline_run.id"), primary_key=True, init=False
+#     )
+#     execution: orm.Mapped["ExecutionNode"] = orm.relationship()
+#     pipeline_run: orm.Mapped["PipelineRun"] = orm.relationship()
+
+
+class ContainerExecution(_TableBase):
+    __tablename__ = "container_execution"
+    id: orm.Mapped[IdType] = orm.mapped_column(primary_key=True, init=False)
+    # task_spec: orm.Mapped[dict[str, Any]]
+    status: orm.Mapped[ContainerExecutionStatus]
+    last_processed_time: orm.Mapped[datetime.datetime | None] = orm.mapped_column(
+        default=None
+    )
+
+    launcher_data: orm.Mapped[dict[str, Any] | None] = orm.mapped_column(default=None)
+
+    # Do we need these?
+    input_artifact_data_map: orm.Mapped[dict[str, Any] | None] = orm.mapped_column(
+        default=None
+    )
+    output_artifact_data_map: orm.Mapped[dict[str, Any] | None] = orm.mapped_column(
+        default=None
+    )
+    log_uri: orm.Mapped[str | None] = orm.mapped_column(default=None)
+
+    extra_data: orm.Mapped[dict[str, Any] | None] = orm.mapped_column(default=None)
