@@ -125,6 +125,7 @@ class _TableBase(orm.MappedAsDataclass, orm.DeclarativeBase, kw_only=True):
         # structures.TypeSpecType: sql.JSON,  # !!! Gotcha. This causes str map to JSON
         # SqlIOTypeStruct: sql.JSON,
         # PipelineSpec: sql.JSON,
+        str: sql.String(255),
     }
 
 
