@@ -19,7 +19,7 @@ db_engine = sqlalchemy.create_engine(
     url=database_uri,
     # echo=True,
     # FastApi claims it's needed and safe: https://fastapi.tiangolo.com/tutorial/sql-databases/#create-an-engine
-    connect_args={"check_same_thread": False},
+    connect_args={"check_same_thread": False} if database_uri.startswith("sqlite://") else None,
     # https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#using-a-memory-database-in-multiple-threads
     poolclass=(
         sqlalchemy.pool.StaticPool if database_uri == DEFAULT_DATABASE_URI else None
