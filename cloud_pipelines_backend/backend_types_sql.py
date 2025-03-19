@@ -8,7 +8,6 @@ from typing import Any, Optional
 import pydantic
 import pydantic.alias_generators
 
-import sqlalchemy
 import sqlalchemy as sql
 from sqlalchemy import orm
 
@@ -22,23 +21,34 @@ IdType: typing.TypeAlias = int
 
 class ContainerExecutionStatus(str, enum.Enum):
     INVALID = "INVALID"  # Compatibility with Vertex AI CustomJob
-    UNINITIALIZED = "UNINITIALIZED"
-    CREATED = "CREATED"  # Before WAITING_FOR_UPSTREAM or STARTING
+    UNINITIALIZED = "UNINITIALIZED"  # Remove
+    QUEUED = "QUEUED"  # Before WAITING_FOR_UPSTREAM or STARTING
+    # READY_TO_START = "READY_TO_START"  # Input artifacts ready, but no job ID
     WAITING_FOR_UPSTREAM = "WAITING_FOR_UPSTREAM"
-    STARTING = "STARTING"
+    # STARTING = "STARTING"
+    PENDING = "PENDING"  # == Starting
     RUNNING = "RUNNING"
     SUCCEEDED = "SUCCEEDED"
     FAILED = "FAILED"
-    UPSTREAM_FAILED = "UPSTREAM_FAILED"
-    CONDITIONALLY_SKIPPED = "CONDITIONALLY_SKIPPED"
+    # UPSTREAM_FAILED = "UPSTREAM_FAILED"
+    # CONDITIONALLY_SKIPPED = "CONDITIONALLY_SKIPPED"
     SYSTEM_ERROR = "SYSTEM_ERROR"
 
     # new
-    READY_TO_START = "READY_TO_START"  # Input artifacts ready, but no job ID
     CANCELLING = "CANCELLING"
     CANCELLED = "CANCELLED"
-    UPSTREAM_FAILED_OR_SKIPPED = "UPSTREAM_FAILED_OR_SKIPPED"
+    # UPSTREAM_FAILED_OR_SKIPPED = "UPSTREAM_FAILED_OR_SKIPPED"
+    SKIPPED = "SKIPPED"
 
+
+CONTAINER_STATUSES_ENDED = {
+    ContainerExecutionStatus.INVALID,
+    ContainerExecutionStatus.SUCCEEDED,
+    ContainerExecutionStatus.FAILED,
+    ContainerExecutionStatus.SYSTEM_ERROR,
+    ContainerExecutionStatus.CANCELLED,
+    ContainerExecutionStatus.SKIPPED,
+}
 
 # def dataclass_from_dict(klass, json_dict):
 #     try:
@@ -172,6 +182,10 @@ class ArtifactData(_TableBase):
 
     extra_data: orm.Mapped[dict[str, Any] | None] = orm.mapped_column(default=None)
 
+    # artifact_nodes: orm.Mapped[list["ArtifactNode"]] = orm.relationship(
+    #     default=None, repr=False, back_populates="artifact_data"
+    # )
+
 
 class ArtifactNode(_TableBase):
     __tablename__ = "artifact_node"
@@ -204,6 +218,9 @@ class ArtifactNode(_TableBase):
     )
     downstream_execution_links: orm.Mapped[list["InputArtifactLink"]] = (
         orm.relationship(back_populates="artifact", default_factory=list, repr=False)
+    )
+    downstream_executions: orm.Mapped[list["ExecutionNode"]] = orm.relationship(
+        secondary="input_artifact_link", viewonly=True, default_factory=list, repr=False
     )
 
     # x_producer_execution_output_link_id: orm.Mapped[IdType | None]
@@ -281,7 +298,9 @@ class ExecutionNode(_TableBase):
     task_spec: orm.Mapped[dict[str, Any]]
     # input_arguments: dict[str, ArtifactNode]
 
-    constant_arguments: orm.Mapped[dict[str, Any] | None] = orm.mapped_column(default=None)  # dict[str, ArtifactData]
+    # constant_arguments: orm.Mapped[dict[str, Any] | None] = orm.mapped_column(
+    #     default=None
+    # )  # dict[str, ArtifactData]
 
     input_artifact_links: orm.Mapped[list[InputArtifactLink]] = orm.relationship(
         back_populates="execution",
@@ -296,6 +315,13 @@ class ExecutionNode(_TableBase):
         init=False,
         default_factory=list,
         repr=False,
+    )
+    output_artifact_nodes: orm.Mapped[list["ArtifactNode"]] = orm.relationship(
+        secondary="output_artifact_link",
+        init=False,
+        default_factory=list,
+        repr=False,
+        viewonly=True,
     )
 
     parent_execution_id: orm.Mapped[IdType | None] = orm.mapped_column(
@@ -335,7 +361,7 @@ class ExecutionNode(_TableBase):
         sql.ForeignKey("container_execution.id"), default=None, init=False
     )
     container_execution: orm.Mapped["ContainerExecution"] = orm.relationship(
-        default=None, repr=False
+        default=None, repr=False, back_populates="execution_nodes"
     )
     # TODO: Do we need this? It's denormalized.
     container_execution_status: orm.Mapped[ContainerExecutionStatus | None] = orm.mapped_column(default=None)
@@ -392,9 +418,14 @@ class ContainerExecution(_TableBase):
     id: orm.Mapped[IdType] = orm.mapped_column(primary_key=True, init=False)
     # task_spec: orm.Mapped[dict[str, Any]]
     status: orm.Mapped[ContainerExecutionStatus]
-    last_processed_time: orm.Mapped[datetime.datetime | None] = orm.mapped_column(
+    last_processed_at: orm.Mapped[datetime.datetime | None] = orm.mapped_column(
         default=None
     )
+    created_at: orm.Mapped[datetime.datetime | None] = orm.mapped_column(default=None)
+    updated_at: orm.Mapped[datetime.datetime | None] = orm.mapped_column(default=None)
+    started_at: orm.Mapped[datetime.datetime | None] = orm.mapped_column(default=None)
+    ended_at: orm.Mapped[datetime.datetime | None] = orm.mapped_column(default=None)
+    exit_code: orm.Mapped[int | None] = orm.mapped_column(default=None)
 
     launcher_data: orm.Mapped[dict[str, Any] | None] = orm.mapped_column(default=None)
 
@@ -408,3 +439,7 @@ class ContainerExecution(_TableBase):
     log_uri: orm.Mapped[str | None] = orm.mapped_column(default=None)
 
     extra_data: orm.Mapped[dict[str, Any] | None] = orm.mapped_column(default=None)
+
+    execution_nodes: orm.Mapped[list[ExecutionNode]] = orm.relationship(
+        default_factory=list, repr=False, back_populates="container_execution"
+    )
