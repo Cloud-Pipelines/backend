@@ -18,6 +18,10 @@ database_uri = os.environ.get("DATABASE_URI", DEFAULT_DATABASE_URI)
 db_engine = sqlalchemy.create_engine(
     url=database_uri,
     # echo=True,
+    # Preventing the "MySQL server has gone away" error:
+    # https://docs.sqlalchemy.org/en/20/faq/connections.html#mysql-server-has-gone-away
+    pool_recycle=3600,
+    # pool_pre_ping=True,
     # FastApi claims it's needed and safe: https://fastapi.tiangolo.com/tutorial/sql-databases/#create-an-engine
     connect_args={"check_same_thread": False} if database_uri.startswith("sqlite://") else {},
     # https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#using-a-memory-database-in-multiple-threads
