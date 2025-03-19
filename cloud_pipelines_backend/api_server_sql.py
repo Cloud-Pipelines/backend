@@ -538,7 +538,7 @@ def _recursively_create_all_executions_and_artifacts(
         # root_execution_node.container_execution_id = container_execution_node.id
         # Done: Maybe set WAITING_FOR_UPSTREAM ourselves.
         root_execution_node.container_execution_status = (
-            bts.ContainerExecutionStatus.UNINITIALIZED
+            bts.ContainerExecutionStatus.QUEUED
             if all(
                 artifact_node.artifact_data
                 for artifact_node in input_artifact_nodes.values()
