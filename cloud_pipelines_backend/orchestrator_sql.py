@@ -422,11 +422,17 @@ class OrchestratorService_Sql:
                     bts.ContainerExecutionStatus.RUNNING
                 )
         elif new_status == launcher_interfaces.ContainerStatus.SUCCEEDED:
-            _retry(
-                lambda: reloaded_launched_container.upload_log(
-                    launcher=self._launcher
+            try:
+                _retry(
+                    lambda: reloaded_launched_container.upload_log(
+                        launcher=self._launcher
+                    )
                 )
-            )
+            except:
+                _logger.exception(
+                    f"Failed getting the logs for: {container_execution.id=}. Skipping. In the future this will be SYSTEM_ERROR."
+                )
+
             _MAX_PRELOAD_VALUE_SIZE = 255
 
             def _maybe_preload_value(
