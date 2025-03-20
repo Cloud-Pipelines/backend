@@ -130,8 +130,22 @@ class OrchestratorService_Sql:
                 running_container_execution.status = (
                     bts.ContainerExecutionStatus.SYSTEM_ERROR
                 )
+                # Doing an intermediate commit here because it's most important to mark the problematic execution as SYSTEM_ERROR.
                 session.commit()
-                # TODO: Mark all downstream executions as skipped
+                # Mark our ExecutionNode as SYSTEM_ERROR
+                execution_nodes = running_container_execution.execution_nodes
+                for execution_node in execution_nodes:
+                    execution_node.container_execution_status = (
+                        bts.ContainerExecutionStatus.SYSTEM_ERROR
+                    )
+                # Doing an intermediate commit here because it's most important to mark the problematic node as SYSTEM_ERROR.
+                session.commit()
+                # Skip downstream executions
+                for execution_node in execution_nodes:
+                    _mark_all_downstream_executions_as_skipped(
+                        session=session, execution=execution_node
+                    )
+                session.commit()
             return True
         else:
             _logger.debug(f"No running container executions found")
