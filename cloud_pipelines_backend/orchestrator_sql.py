@@ -385,158 +385,148 @@ class OrchestratorService_Sql:
             _logger.info(
                 f"Container execution {container_execution.id} remains in {new_status} state."
             )
-        else:
-            _logger.info(
-                f"Container execution {container_execution.id} is now in state {new_status} (was {previous_status})."
-            )
-            session.rollback()
-            with session.begin():
-                container_execution.updated_at = current_time
-                execution_nodes = container_execution.execution_nodes
-                if not execution_nodes:
-                    raise OrchestratorError(
-                        f"Could not find ExecutionNode associated with ContainerExecution. {container_execution=}"
-                    )
-                if len(execution_nodes) > 1:
-                    _logger.warning(
-                        f"ContainerExecution is associated with multiple ExecutionNodes: {container_execution=}, {execution_nodes=}"
-                    )
+            return
+        _logger.info(
+            f"Container execution {container_execution.id} is now in state {new_status} (was {previous_status})."
+        )
+        session.rollback()
+        with session.begin():
+            container_execution.updated_at = current_time
+            execution_nodes = container_execution.execution_nodes
+            if not execution_nodes:
+                raise OrchestratorError(
+                    f"Could not find ExecutionNode associated with ContainerExecution. {container_execution=}"
+                )
+            if len(execution_nodes) > 1:
+                _logger.warning(
+                    f"ContainerExecution is associated with multiple ExecutionNodes: {container_execution=}, {execution_nodes=}"
+                )
 
-                if new_status == launcher_interfaces.ContainerStatus.RUNNING:
-                    container_execution.status = bts.ContainerExecutionStatus.RUNNING
-                    for execution_node in execution_nodes:
-                        execution_node.container_execution_status = (
-                            bts.ContainerExecutionStatus.RUNNING
-                        )
-                elif new_status == launcher_interfaces.ContainerStatus.SUCCEEDED:
-                    _retry(
-                        lambda: reloaded_launched_container.upload_log(
-                            launcher=self._launcher
-                        )
+            if new_status == launcher_interfaces.ContainerStatus.RUNNING:
+                container_execution.status = bts.ContainerExecutionStatus.RUNNING
+                for execution_node in execution_nodes:
+                    execution_node.container_execution_status = (
+                        bts.ContainerExecutionStatus.RUNNING
                     )
-                    _MAX_PRELOAD_VALUE_SIZE = 255
+            elif new_status == launcher_interfaces.ContainerStatus.SUCCEEDED:
+                _retry(
+                    lambda: reloaded_launched_container.upload_log(
+                        launcher=self._launcher
+                    )
+                )
+                _MAX_PRELOAD_VALUE_SIZE = 255
 
-                    def _maybe_preload_value(
-                        uri_reader: storage_provider_interfaces.UriReader,
-                        data_info: storage_provider_interfaces.DataInfo,
-                    ) -> str | None:
-                        """Preloads artifact value is it's small enough (e.g. <=255 bytes)"""
+                def _maybe_preload_value(
+                    uri_reader: storage_provider_interfaces.UriReader,
+                    data_info: storage_provider_interfaces.DataInfo,
+                ) -> str | None:
+                    """Preloads artifact value is it's small enough (e.g. <=255 bytes)"""
+                    if (
+                        not data_info.is_dir
+                        and data_info.total_size < _MAX_PRELOAD_VALUE_SIZE
+                    ):
+                        data = uri_reader.download_as_bytes()
+                        try:
+                            text = data.decode("utf-8")
+                            return text
+                        except:
+                            pass
+
+                output_artifact_uris: dict[str, str] = {
+                    output_name: output_artifact_info_dict["uri"]
+                    for output_name, output_artifact_info_dict in container_execution.output_artifact_data_map.items()
+                }
+                output_artifact_data_info_map = {
+                    output_name: _retry(
+                        lambda: self._storage_provider.make_uri(uri)
+                        .get_reader()
+                        .get_info()
+                    )
+                    for output_name, uri in output_artifact_uris.items()
+                }
+                new_output_artifact_data_map = {
+                    output_name: bts.ArtifactData(
+                        total_size=data_info.total_size,
+                        is_dir=data_info.is_dir,
+                        hash="md5=" + data_info.hashes["md5"],
+                        uri=output_artifact_uris[output_name],
+                        # Preloading artifact value is it's small enough (e.g. <=255 bytes)
+                        value=_retry(
+                            lambda: _maybe_preload_value(
+                                uri_reader=self._storage_provider.make_uri(
+                                    output_artifact_uris[output_name]
+                                ).get_reader(),
+                                data_info=data_info,
+                            )
+                        ),
+                        created_at=current_time,
+                    )
+                    for output_name, data_info in output_artifact_data_info_map.items()
+                }
+
+                session.add_all(new_output_artifact_data_map.values())
+                container_execution.status = bts.ContainerExecutionStatus.SUCCEEDED
+                container_execution.exit_code = reloaded_launched_container.exit_code
+                for execution_node in execution_nodes:
+                    execution_node.container_execution_status = (
+                        bts.ContainerExecutionStatus.SUCCEEDED
+                    )
+                    # TODO: Optimize
+                    for output_name, artifact_node in session.execute(
+                        sql.select(bts.OutputArtifactLink.output_name, bts.ArtifactNode)
+                        .join(bts.OutputArtifactLink.artifact)
+                        .where(bts.OutputArtifactLink.execution_id == execution_node.id)
+                    ).tuples():
+                        artifact_node.artifact_data = new_output_artifact_data_map[
+                            output_name
+                        ]
+                        artifact_node.had_data_in_past = True
+                    # Waking up all direct downstream executions.
+                    # Many of them will get processed and go back to WAITING_FOR_UPSTREAM state.
+                    for downstream_execution in _get_direct_downstream_executions(
+                        session=session, execution=execution_node
+                    ):
                         if (
-                            not data_info.is_dir
-                            and data_info.total_size < _MAX_PRELOAD_VALUE_SIZE
+                            downstream_execution.container_execution_status
+                            == bts.ContainerExecutionStatus.WAITING_FOR_UPSTREAM
                         ):
-                            data = uri_reader.download_as_bytes()
-                            try:
-                                text = data.decode("utf-8")
-                                return text
-                            except:
-                                pass
-
-                    output_artifact_uris: dict[str, str] = {
-                        output_name: output_artifact_info_dict["uri"]
-                        for output_name, output_artifact_info_dict in container_execution.output_artifact_data_map.items()
-                    }
-                    output_artifact_data_info_map = {
-                        output_name: _retry(
-                            lambda: self._storage_provider.make_uri(uri)
-                            .get_reader()
-                            .get_info()
-                        )
-                        for output_name, uri in output_artifact_uris.items()
-                    }
-                    new_output_artifact_data_map = {
-                        output_name: bts.ArtifactData(
-                            total_size=data_info.total_size,
-                            is_dir=data_info.is_dir,
-                            hash="md5=" + data_info.hashes["md5"],
-                            uri=output_artifact_uris[output_name],
-                            # Preloading artifact value is it's small enough (e.g. <=255 bytes)
-                            value=_retry(
-                                lambda: _maybe_preload_value(
-                                    uri_reader=self._storage_provider.make_uri(
-                                        output_artifact_uris[output_name]
-                                    ).get_reader(),
-                                    data_info=data_info,
-                                )
-                            ),
-                            created_at=current_time,
-                        )
-                        for output_name, data_info in output_artifact_data_info_map.items()
-                    }
-
-                    session.add_all(new_output_artifact_data_map.values())
-                    container_execution.status = bts.ContainerExecutionStatus.SUCCEEDED
-                    container_execution.exit_code = (
-                        reloaded_launched_container.exit_code
-                    )
-                    for execution_node in execution_nodes:
-                        execution_node.container_execution_status = (
-                            bts.ContainerExecutionStatus.SUCCEEDED
-                        )
-                        # TODO: Optimize
-                        for output_name, artifact_node in session.execute(
-                            sql.select(
-                                bts.OutputArtifactLink.output_name, bts.ArtifactNode
+                            downstream_execution.container_execution_status = (
+                                bts.ContainerExecutionStatus.QUEUED
                             )
-                            .join(bts.OutputArtifactLink.artifact)
-                            .where(
-                                bts.OutputArtifactLink.execution_id == execution_node.id
-                            )
-                        ).tuples():
-                            artifact_node.artifact_data = new_output_artifact_data_map[
-                                output_name
-                            ]
-                            artifact_node.had_data_in_past = True
-                        # Waking up all direct downstream executions.
-                        # Many of them will get processed and go back to WAITING_FOR_UPSTREAM state.
-                        for downstream_execution in _get_direct_downstream_executions(
-                            session=session, execution=execution_node
-                        ):
-                            if (
-                                downstream_execution.container_execution_status
-                                == bts.ContainerExecutionStatus.WAITING_FOR_UPSTREAM
-                            ):
-                                downstream_execution.container_execution_status = (
-                                    bts.ContainerExecutionStatus.QUEUED
-                                )
-                elif new_status == launcher_interfaces.ContainerStatus.FAILED:
-                    container_execution.status = bts.ContainerExecutionStatus.FAILED
-                    container_execution.exit_code = (
-                        reloaded_launched_container.exit_code
+            elif new_status == launcher_interfaces.ContainerStatus.FAILED:
+                container_execution.status = bts.ContainerExecutionStatus.FAILED
+                container_execution.exit_code = reloaded_launched_container.exit_code
+                _retry(
+                    lambda: reloaded_launched_container.upload_log(
+                        launcher=self._launcher
                     )
-                    _retry(
-                        lambda: reloaded_launched_container.upload_log(
-                            launcher=self._launcher
-                        )
+                )
+                # Skip downstream executions
+                for execution_node in execution_nodes:
+                    execution_node.container_execution_status = (
+                        bts.ContainerExecutionStatus.FAILED
                     )
-                    # Skip downstream executions
-                    for execution_node in execution_nodes:
-                        execution_node.container_execution_status = (
-                            bts.ContainerExecutionStatus.FAILED
-                        )
-                        _mark_all_downstream_executions_as_skipped(
-                            session=session, execution=execution_node
-                        )
-                else:
-                    _logger.error(
-                        f"Container execution {container_execution.id} is now in unexpected state {new_status}. System error. {container_execution=}"
+                    _mark_all_downstream_executions_as_skipped(
+                        session=session, execution=execution_node
                     )
-                    # # This SYSTEM_ERROR will be handled by the outer exception handler
-                    container_execution.status = (
+            else:
+                _logger.error(
+                    f"Container execution {container_execution.id} is now in unexpected state {new_status}. System error. {container_execution=}"
+                )
+                # # This SYSTEM_ERROR will be handled by the outer exception handler
+                container_execution.status = bts.ContainerExecutionStatus.SYSTEM_ERROR
+                # Skip downstream executions
+                for execution_node in execution_nodes:
+                    execution_node.container_execution_status = (
                         bts.ContainerExecutionStatus.SYSTEM_ERROR
                     )
-                    # Skip downstream executions
-                    for execution_node in execution_nodes:
-                        execution_node.container_execution_status = (
-                            bts.ContainerExecutionStatus.SYSTEM_ERROR
-                        )
-                        _mark_all_downstream_executions_as_skipped(
-                            session=session, execution=execution_node
-                        )
-                    session.commit
-                    raise OrchestratorError(
-                        f"Unexpected running container status: {new_status=}, {launched_container=}"
+                    _mark_all_downstream_executions_as_skipped(
+                        session=session, execution=execution_node
                     )
+                session.commit
+                raise OrchestratorError(
+                    f"Unexpected running container status: {new_status=}, {launched_container=}"
+                )
 
 
 def _get_direct_downstream_executions(
