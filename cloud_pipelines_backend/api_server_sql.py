@@ -71,6 +71,7 @@ class PipelineRunsApiService_Sql:
         components: Optional[list[structures.ComponentReference]] = None,
         # Arbitrary metadata. Can be used to specify user.
         annotations: Optional[dict[str, Any]] = None,
+        created_by: str | None = None,
     ) -> PipelineRunResponse:
         # TODO: Validate the pipeline spec
         # TODO: Load and validate all components
@@ -90,6 +91,7 @@ class PipelineRunsApiService_Sql:
                 created_at=current_time,
                 updated_at=current_time,
                 annotations=annotations,
+                created_by=created_by,
             )
             session.add(pipeline_run)
             session.commit()
