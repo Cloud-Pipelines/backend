@@ -390,7 +390,7 @@ class OrchestratorService_Sql:
             f"Container execution {container_execution.id} is now in state {new_status} (was {previous_status})."
         )
         session.rollback()
-        with session.begin():
+        try:
             container_execution.updated_at = current_time
             execution_nodes = container_execution.execution_nodes
             if not execution_nodes:
@@ -513,20 +513,30 @@ class OrchestratorService_Sql:
                 _logger.error(
                     f"Container execution {container_execution.id} is now in unexpected state {new_status}. System error. {container_execution=}"
                 )
-                # # This SYSTEM_ERROR will be handled by the outer exception handler
-                container_execution.status = bts.ContainerExecutionStatus.SYSTEM_ERROR
-                # Skip downstream executions
-                for execution_node in execution_nodes:
-                    execution_node.container_execution_status = (
-                        bts.ContainerExecutionStatus.SYSTEM_ERROR
-                    )
-                    _mark_all_downstream_executions_as_skipped(
-                        session=session, execution=execution_node
-                    )
-                session.commit
+                # This SYSTEM_ERROR will be handled by the outer exception handler
                 raise OrchestratorError(
                     f"Unexpected running container status: {new_status=}, {launched_container=}"
                 )
+            session.commit()
+        except:
+            session.rollback()
+            _logger.exception(f"Error processing {container_execution.id=}")
+            container_execution.status = bts.ContainerExecutionStatus.SYSTEM_ERROR
+            # Doing an intermediate commit here because it's most important to mark the problematic execution as SYSTEM_ERROR.
+            session.commit()
+            # Mark our ExecutionNode as SYSTEM_ERROR
+            for execution_node in execution_nodes:
+                execution_node.container_execution_status = (
+                    bts.ContainerExecutionStatus.SYSTEM_ERROR
+                )
+            # Doing an intermediate commit here because it's most important to mark the problematic node as SYSTEM_ERROR.
+            session.commit()
+            # Skip downstream executions
+            for execution_node in execution_nodes:
+                _mark_all_downstream_executions_as_skipped(
+                    session=session, execution=execution_node
+                )
+            session.commit()
 
 
 def _get_direct_downstream_executions(
