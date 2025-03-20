@@ -10,7 +10,9 @@ from typing import Any
 import sqlalchemy as sql
 from sqlalchemy import orm
 
-from cloud_pipelines.orchestration.storage_providers import interfaces as storage_provider_interfaces
+from cloud_pipelines.orchestration.storage_providers import (
+    interfaces as storage_provider_interfaces,
+)
 from cloud_pipelines.orchestration.launchers import naming_utils
 
 from . import backend_types_sql as bts

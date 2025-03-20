@@ -38,8 +38,8 @@ def main():
     db_engine = sqlalchemy.create_engine(url=database_uri)
     logger.info("Completed sqlalchemy.create_engine")
 
+    # With autobegin=False you always need to beging a transaction, even to query the DB.
     session_factory = orm.sessionmaker(
-        # With autobegin=False you always need to beging a transaction, even to query the DB.
         autocommit=False, autoflush=False, bind=db_engine
     )
 

@@ -327,14 +327,23 @@ class ExecutionNode(_TableBase):
     parent_execution_id: orm.Mapped[IdType | None] = orm.mapped_column(
         sql.ForeignKey("execution_node.id"), default=None, init=False
     )
-    task_id_in_parent_execution: orm.Mapped[str | None] = orm.mapped_column(default=None)
+    task_id_in_parent_execution: orm.Mapped[str | None] = orm.mapped_column(
+        default=None
+    )
     # !!! remote_side=[id] is important. Without it, the relationship somehow works the opposite way.
     parent_execution: orm.Mapped["ExecutionNode"] = orm.relationship(
-        remote_side=[id], back_populates="child_executions", default=None, repr=False,
+        remote_side=[id],
+        back_populates="child_executions",
+        default=None,
+        repr=False,
     )
     # parent_execution: "SqlExecutionNode" = sqlmodel.Relationship()
     child_executions: orm.Mapped[list["ExecutionNode"]] = orm.relationship(
-        remote_side=[parent_execution_id], back_populates="parent_execution",  default_factory=list, init=False, repr=False,
+        remote_side=[parent_execution_id],
+        back_populates="parent_execution",
+        default_factory=list,
+        init=False,
+        repr=False,
     )
 
     # updated_at: orm.Mapped[datetime.datetime | None] = orm.mapped_column(default=None)
@@ -364,8 +373,12 @@ class ExecutionNode(_TableBase):
         default=None, repr=False, back_populates="execution_nodes"
     )
     # TODO: Do we need this? It's denormalized.
-    container_execution_status: orm.Mapped[ContainerExecutionStatus | None] = orm.mapped_column(default=None)
-    container_execution_cache_key: orm.Mapped[str | None] = orm.mapped_column(default=None)
+    container_execution_status: orm.Mapped[ContainerExecutionStatus | None] = (
+        orm.mapped_column(default=None)
+    )
+    container_execution_cache_key: orm.Mapped[str | None] = orm.mapped_column(
+        default=None
+    )
 
     # ? UX-only de-normalized
     # For breadcrumbs navigation
