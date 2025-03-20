@@ -370,10 +370,17 @@ class OrchestratorService_Sql:
         reloaded_launched_container: launcher_interfaces.LaunchedContainer = (
             self._launcher.get_refreshed_launched_container_from_dict(launcher_data)
         )
+        current_time = _get_current_time()
+        # Saving the updated launcher data
+        reloaded_launcher_data = reloaded_launched_container.to_dict()
+        if reloaded_launcher_data != launcher_data:
+            session.rollback()
+            with session.begin():
+                container_execution.launcher_data = reloaded_launcher_data
+                container_execution.updated_at = current_time
         new_status: launcher_interfaces.ContainerStatus = (
             reloaded_launched_container.status
         )
-        current_time = _get_current_time()
         if new_status == previous_status:
             _logger.info(
                 f"Container execution {container_execution.id} remains in {new_status} state."
