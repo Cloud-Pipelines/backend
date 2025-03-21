@@ -1,8 +1,8 @@
+import os
 import traceback
 
 import fastapi
 
-from . import api_server_sql
 from . import api_router
 
 app = fastapi.FastAPI(
@@ -21,15 +21,11 @@ def handle_error(request: fastapi.Request, exc: BaseException):
     )
 
 
-@app.exception_handler(api_server_sql.ItemNotFoundError)
-def handle_not_found_error(
-    request: fastapi.Request, exc: api_server_sql.ItemNotFoundError
-):
-    return fastapi.responses.JSONResponse(
-        status_code=404,
-        content={"message": str(exc)},
-    )
+DEFAULT_DATABASE_URI = "sqlite://"
+database_uri = (
+    os.environ.get("DATABASE_URI")
+    or os.environ.get("DATABASE_URL")
+    or DEFAULT_DATABASE_URI
+)
 
-
-# Needs to be called after all routes have been added to the router
-app.include_router(api_router.router)
+api_router.setup_routes(app=app, database_uri=database_uri)
