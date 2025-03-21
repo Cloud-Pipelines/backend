@@ -389,7 +389,7 @@ class ArtifactNodesApiService_Sql:
             raise ItemNotFoundError(f"Artifact node with {id=} does not exist.")
         if not artifact_data.uri:
             raise ValueError(f"Artifact node with {id=} does not have artifact URI.")
-        if not artifact_data.is_dir:
+        if artifact_data.is_dir:
             raise ValueError(f"Cannot generate signer URL for a directory artifact.")
         if not artifact_data.uri.startswith("gs://"):
             raise ValueError(
