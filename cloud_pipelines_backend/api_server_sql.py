@@ -400,7 +400,10 @@ class ArtifactNodesApiService_Sql:
 
         storage_client = storage.Client()
         blob = storage.Blob.from_string(uri=artifact_data.uri, client=storage_client)
-        signed_url = blob.generate_signed_url()
+        signed_url = blob.generate_signed_url(
+            # Expiration is required. Max expiration value is 7 days.
+            expiration=datetime.timedelta(days=7)
+        )
         return GetArtifactSignedUrlResponse(signed_url=signed_url)
 
 
