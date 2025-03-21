@@ -16,7 +16,11 @@ DEFAULT_DATABASE_URI = "sqlite://"
 database_uri = os.environ.get("DATABASE_URI", DEFAULT_DATABASE_URI)
 
 
-def setup_routes(app: fastapi.FastAPI, database_uri: str):
+def setup_routes(
+    app: fastapi.FastAPI,
+    database_uri: str,
+    get_user_name: typing.Callable[[], str] | None = None,
+):
     # We request `app: fastapi.FastAPI` instead of just returning the router
     # because we want to add exception handler which is only suported for `FastAPI`.
 
@@ -126,12 +130,23 @@ def setup_routes(app: fastapi.FastAPI, database_uri: str):
         replace_annotations(pipeline_run_service.get, orm.Session, SessionDep)
     )
 
+    create_run_func = pipeline_run_service.create
+    # The `session` parameter value now comes from a Dependency (instead of request)
+    create_run_func = replace_annotations(create_run_func, orm.Session, SessionDep)
+    if get_user_name:
+        # The `created_by` parameter value now comes from a Dependency (instead of request)
+        create_run_func = add_parameter_annotation_metadata(
+            create_run_func,
+            parameter_name="created_by",
+            annotation_metadata=fastapi.Depends(get_user_name),
+        )
+
     router.post(
         "/api/pipeline_runs/",
         tags=["pipelineRuns"],
         dependencies=[fastapi.Depends(check_not_readonly)],
         **default_config,
-    )(replace_annotations(pipeline_run_service.create, orm.Session, SessionDep))
+    )(create_run_func)
 
     # # Needs to be called after all routes have been added to the router
     # app.include_router(router)
@@ -172,4 +187,11 @@ def replace_annotations(func, original_annotation, new_annotation):
     for name in list(func.__annotations__):
         if func.__annotations__[name] == original_annotation:
             func.__annotations__[name] = new_annotation
+    return func
+
+
+def add_parameter_annotation_metadata(func, parameter_name: str, annotation_metadata):
+    func.__annotations__[parameter_name] = typing.Annotated[
+        func.__annotations__[parameter_name], annotation_metadata
+    ]
     return func
