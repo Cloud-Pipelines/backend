@@ -46,7 +46,7 @@ def setup_routes(
         # Preventing the "MySQL server has gone away" error:
         # https://docs.sqlalchemy.org/en/20/faq/connections.html#mysql-server-has-gone-away
         pool_recycle=3600,
-        # pool_pre_ping=True,
+        pool_pre_ping=True,
         # FastApi claims it's needed and safe: https://fastapi.tiangolo.com/tutorial/sql-databases/#create-an-engine
         connect_args=(
             {"check_same_thread": False} if database_uri.startswith("sqlite://") else {}
