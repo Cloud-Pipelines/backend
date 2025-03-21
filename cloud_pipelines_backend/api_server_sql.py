@@ -258,7 +258,7 @@ class ExecutionNodesApiService_Sql:
             child_task_execution_ids=child_task_execution_ids,
         )
 
-    def get_state(
+    def get_graph_execution_state(
         self, session: orm.Session, id: bts.IdType
     ) -> GetGraphExecutionStateResponse:
         ExecutionNode_Child = orm.aliased(
