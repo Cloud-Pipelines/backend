@@ -148,6 +148,14 @@ def setup_routes(
         **default_config,
     )(create_run_func)
 
+    router.get(
+        "/api/artifacts/{id}/signed_artifact_url", tags=["artifacts"], **default_config
+    )(
+        replace_annotations(
+            artifact_service.get_signed_artifact_url, orm.Session, SessionDep
+        )
+    )
+
     # # Needs to be called after all routes have been added to the router
     # app.include_router(router)
 

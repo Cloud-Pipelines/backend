@@ -360,6 +360,11 @@ class GetArtifactInfoResponse:
     artifact_data: bts.ArtifactData | None = None
 
 
+@dataclasses.dataclass(kw_only=True)
+class GetArtifactSignedUrlResponse:
+    signed_url: str
+
+
 class ArtifactNodesApiService_Sql:
 
     def get(self, session: orm.Session, id: bts.IdType) -> GetArtifactInfoResponse:
@@ -371,6 +376,32 @@ class ArtifactNodesApiService_Sql:
         if artifact_data:
             result.artifact_data = artifact_data
         return result
+
+    def get_signed_artifact_url(
+        self, session: orm.Session, id: bts.IdType
+    ) -> GetArtifactSignedUrlResponse:
+        artifact_data = session.scalar(
+            sql.select(bts.ArtifactData)
+            .join(bts.ArtifactNode)
+            .where(bts.ArtifactNode.id == id)
+        )
+        if not artifact_data:
+            raise ItemNotFoundError(f"Artifact node with {id=} does not exist.")
+        if not artifact_data.uri:
+            raise ValueError(f"Artifact node with {id=} does not have artifact URI.")
+        if not artifact_data.is_dir:
+            raise ValueError(f"Cannot generate signer URL for a directory artifact.")
+        if not artifact_data.uri.startswith("gs://"):
+            raise ValueError(
+                f"The get_signed_artifact_url method only supports Google Cloud Storage URIs, but got {artifact_data.uri=}."
+            )
+
+        from google.cloud import storage
+
+        storage_client = storage.Client()
+        blob = storage.Blob.from_string(uri=artifact_data.uri, client=storage_client)
+        signed_url = blob.generate_signed_url()
+        return GetArtifactSignedUrlResponse(signed_url=signed_url)
 
 
 # ============
