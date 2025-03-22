@@ -8,6 +8,7 @@ import typing
 from typing import Any, Optional
 
 from kubernetes import client as k8s_client_lib
+from kubernetes import watch as k8s_watch_lib
 
 from cloud_pipelines.orchestration.launchers import naming_utils
 from cloud_pipelines.orchestration.storage_providers import (
@@ -570,6 +571,22 @@ class LaunchedKubernetesContainer(
         log = self.get_log(launcher=launcher)
         uri_writer = launcher._storage_provider.make_uri(self._log_uri).get_writer()
         uri_writer.upload_from_text(log)
+
+    def stream_log_lines(
+        self, launcher: _KubernetesContainerLauncher
+    ) -> typing.Iterator[str]:
+        core_api_client = k8s_client_lib.CoreV1Api(api_client=launcher._api_client)
+        stream = k8s_watch_lib.Watch().stream(
+            core_api_client.read_namespaced_pod_log,
+            name=self._pod_name,
+            namespace=self._namespace,
+            container=_MAIN_CONTAINER_NAME,
+            timestamps=True,
+            stream="All",
+            _request_timeout=launcher._request_timeout,
+        )
+        for line in stream:
+            yield line
 
     def __str__(self) -> str:
         import pprint
