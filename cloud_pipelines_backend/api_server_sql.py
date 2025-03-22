@@ -238,6 +238,12 @@ class GetGraphExecutionStateResponse:
     pass
 
 
+@dataclasses.dataclass(kw_only=True)
+class GetExecutionArtifactsResponse:
+    input_artifacts: dict[str, "ArtifactNodeResponse"] | None = None
+    output_artifacts: dict[str, "ArtifactNodeResponse"] | None = None
+
+
 class ExecutionNodesApiService_Sql:
 
     def get(self, session: orm.Session, id: bts.IdType) -> GetExecutionInfoResponse:
@@ -351,6 +357,99 @@ class ExecutionNodesApiService_Sql:
             status_stats[status.value] = count
         return GetGraphExecutionStateResponse(
             child_execution_status_stats=child_execution_status_stats,
+        )
+
+    def get_artifacts(
+        self, session: orm.Session, id: bts.IdType
+    ) -> GetExecutionArtifactsResponse:
+        if not session.scalar(
+            sql.select(sql.exists().where(bts.ExecutionNode.id == id))
+        ):
+            raise ItemNotFoundError(f"Execution with {id=} does not exist.")
+
+        input_artifact_links = session.scalars(
+            sql.select(bts.InputArtifactLink)
+            .where(bts.InputArtifactLink.execution_id == id)
+            .options(
+                orm.joinedload(bts.InputArtifactLink.artifact).joinedload(
+                    bts.ArtifactNode.artifact_data
+                )
+            )
+        )
+        output_artifact_links = session.scalars(
+            sql.select(bts.OutputArtifactLink)
+            .where(bts.OutputArtifactLink.execution_id == id)
+            .options(
+                orm.joinedload(bts.OutputArtifactLink.artifact).joinedload(
+                    bts.ArtifactNode.artifact_data
+                )
+            )
+        )
+
+        input_artifacts = {
+            input_artifact_link.input_name: ArtifactNodeResponse.from_db(
+                input_artifact_link.artifact
+            )
+            for input_artifact_link in input_artifact_links
+        }
+        output_artifacts = {
+            output_artifact_link.output_name: ArtifactNodeResponse.from_db(
+                output_artifact_link.artifact
+            )
+            for output_artifact_link in output_artifact_links
+        }
+        return GetExecutionArtifactsResponse(
+            input_artifacts=input_artifacts,
+            output_artifacts=output_artifacts,
+        )
+
+
+@dataclasses.dataclass(kw_only=True)
+class ArtifactNodeResponse:
+    id: bts.IdType
+    # had_data_in_past: bool = False
+    # may_have_data_in_future: bool = True
+    type_name: str | None = None
+    type_properties: dict[str, Any] | None = None
+    producer_execution_id: bts.IdType | None = None
+    producer_output_name: str | None = None
+    # artifact_data_id: bts.IdType | None = None
+    artifact_data: "ArtifactDataResponse | None" = None
+
+    @classmethod
+    def from_db(cls, artifact_node: bts.ArtifactNode) -> "ArtifactNodeResponse":
+        result = ArtifactNodeResponse(
+            **{
+                field.name: getattr(artifact_node, field.name)
+                for field in dataclasses.fields(ArtifactNodeResponse)
+            }
+        )
+        if artifact_node.artifact_data:
+            result.artifact_data = ArtifactDataResponse.from_db(
+                artifact_data=artifact_node.artifact_data
+            )
+        return result
+
+
+@dataclasses.dataclass(kw_only=True)
+class ArtifactDataResponse:
+    total_size: int
+    is_dir: bool
+    # hash: str
+    # At least one of `uri` or `value` must be set
+    uri: str | None = None
+    # Small constant value
+    value: str | None = None
+    # created_at: datetime.datetime | None = None
+    # deleted_at: datetime.datetime | None = None
+
+    @classmethod
+    def from_db(cls, artifact_data: bts.ArtifactData) -> "ArtifactDataResponse":
+        return ArtifactDataResponse(
+            **{
+                field.name: getattr(artifact_data, field.name)
+                for field in dataclasses.fields(ArtifactDataResponse)
+            }
         )
 
 

@@ -127,8 +127,8 @@ def setup_routes(
     router.get("/api/executions/{id}/state", tags=["executions"], **default_config)(
         get_graph_execution_state
     )
-    router.get("/api/executions/{id}/graph_execution_state", tags=["executions"], **default_config)(
-        get_graph_execution_state
+    router.get("/api/executions/{id}/artifacts", tags=["executions"], **default_config)(
+        replace_annotations(execution_service.get_artifacts, orm.Session, SessionDep)
     )
     router.get("/api/pipeline_runs/", tags=["pipelineRuns"], **default_config)(
         replace_annotations(pipeline_run_service.list, orm.Session, SessionDep)
