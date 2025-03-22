@@ -11,6 +11,9 @@ from sqlalchemy import orm
 from . import api_server_sql
 from . import backend_types_sql
 
+if typing.TYPE_CHECKING:
+    from .launchers import interfaces as launcher_interfaces
+
 
 DEFAULT_DATABASE_URI = "sqlite://"
 database_uri = os.environ.get("DATABASE_URI", DEFAULT_DATABASE_URI)
@@ -20,6 +23,9 @@ def setup_routes(
     app: fastapi.FastAPI,
     database_uri: str,
     get_user_name: typing.Callable[[], str] | None = None,
+    container_launcher_for_log_streaming: (
+        "launcher_interfaces.ContainerTaskLauncher | None"
+    ) = None,
 ):
     # We request `app: fastapi.FastAPI` instead of just returning the router
     # because we want to add exception handler which is only suported for `FastAPI`.
@@ -137,6 +143,29 @@ def setup_routes(
             execution_service.get_container_execution_log, orm.Session, SessionDep
         )
     )
+
+    if container_launcher_for_log_streaming:
+
+        @router.get(
+            "/api/executions/{id}/stream_container_log",
+            tags=["executions"],
+            **default_config,
+        )
+        def stream_container_log(
+            id: backend_types_sql.IdType,
+            session: SessionDep,
+        ):
+            iterator = execution_service.stream_container_execution_log(
+                session=session,
+                container_launcher=container_launcher_for_log_streaming,
+                execution_id=id,
+            )
+            return fastapi.responses.StreamingResponse(
+                iterator,
+                headers={"X-Content-Type-Options": "nosniff"},
+                media_type="text/event-stream",
+            )
+
     router.get("/api/pipeline_runs/", tags=["pipelineRuns"], **default_config)(
         replace_annotations(pipeline_run_service.list, orm.Session, SessionDep)
     )

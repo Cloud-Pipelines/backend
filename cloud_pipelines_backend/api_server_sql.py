@@ -4,6 +4,9 @@ import logging
 import typing
 from typing import Any, Optional
 
+if typing.TYPE_CHECKING:
+    from .launchers import interfaces as launcher_interfaces
+
 
 _logger = logging.getLogger(__name__)
 
@@ -474,6 +477,33 @@ class ExecutionNodesApiService_Sql:
         else:
             return GetContainerExecutionLogResponse(log_text=None)
 
+    def stream_container_execution_log(
+        self,
+        session: orm.Session,
+        container_launcher: "launcher_interfaces.ContainerTaskLauncher",
+        execution_id: bts.IdType,
+    ) -> typing.Iterator[str]:
+        execution = session.get(bts.ExecutionNode, execution_id)
+        if not execution:
+            raise ItemNotFoundError(f"Execution with {id=} does not exist.")
+        container_execution = execution.container_execution
+        if not container_execution:
+            raise ApiServiceError(
+                f"Execution does not have container execution information."
+            )
+        if not container_execution.launcher_data:
+            raise ApiServiceError(
+                f"Execution does not have container launcher information."
+            )
+
+        launched_container = (
+            container_launcher.deserialize_launched_container_from_dict(
+                container_execution.launcher_data
+            )
+        )
+        return launched_container.stream_log_lines(container_launcher)
+
+
 @dataclasses.dataclass(kw_only=True)
 class ArtifactNodeResponse:
     id: bts.IdType
@@ -566,8 +596,15 @@ class ArtifactNodesApiService_Sql:
             )
 
         from google.cloud import storage
+        from google import auth
 
-        storage_client = storage.Client()
+        # Avoiding error: "you need a private key to sign credentials."
+        # "the credentials you are currently using <class 'google.auth.compute_engine.credentials.Credentials'> just contains a token.
+        # "see https://googleapis.dev/python/google-api-core/latest/auth.html#setting-up-a-service-account for more details."
+        credentials = auth.default(
+            scopes=["https://www.googleapis.com/auth/cloud-platform.read-only"]
+        )[0]
+        storage_client = storage.Client(credentials=credentials)
         blob = storage.Blob.from_string(uri=artifact_data.uri, client=storage_client)
         signed_url = blob.generate_signed_url(
             # Expiration is required. Max expiration value is 7 days.
@@ -920,6 +957,12 @@ def _toposort_tasks(
         )
 
     return sorted_tasks
+
+
+def _sqlalchemy_object_to_dict(obj) -> dict:
+    d = dict(obj.__dict__)
+    d.pop("_sa_instance_state", None)
+    return d
 
 
 # ================
