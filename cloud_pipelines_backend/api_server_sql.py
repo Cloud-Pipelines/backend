@@ -230,6 +230,13 @@ class GetExecutionInfoResponse:
     child_task_execution_ids: dict[str, bts.IdType]
     # pipeline_run_id: str
     # ancestor_breadcrumbs: list[tuple[str, str]]
+    input_artifacts: dict[str, "ArtifactNodeIdResponse"] | None = None
+    output_artifacts: dict[str, "ArtifactNodeIdResponse"] | None = None
+
+
+@dataclasses.dataclass
+class ArtifactNodeIdResponse:
+    id: bts.IdType
 
 
 @dataclasses.dataclass
@@ -257,11 +264,30 @@ class ExecutionNodesApiService_Sql:
             or "<missing>": child_execution.id
             for child_execution in child_executions
         }
+        input_artifacts = {
+            input_name: ArtifactNodeIdResponse(id=artifact_id)
+            for input_name, artifact_id in session.execute(
+                sql.select(
+                    bts.InputArtifactLink.input_name, bts.InputArtifactLink.artifact_id
+                ).where(bts.InputArtifactLink.execution_id == id)
+            ).tuples()
+        }
+        output_artifacts = {
+            output_name: ArtifactNodeIdResponse(id=artifact_id)
+            for output_name, artifact_id in session.execute(
+                sql.select(
+                    bts.OutputArtifactLink.output_name,
+                    bts.OutputArtifactLink.artifact_id,
+                ).where(bts.InputArtifactLink.execution_id == id)
+            ).tuples()
+        }
         return GetExecutionInfoResponse(
             id=execution_node.id,
             task_spec=structures.TaskSpec.from_json_dict(execution_node.task_spec),
             parent_execution_id=execution_node.parent_execution_id,
             child_task_execution_ids=child_task_execution_ids,
+            input_artifacts=input_artifacts,
+            output_artifacts=output_artifacts,
         )
 
     def get_graph_execution_state(
