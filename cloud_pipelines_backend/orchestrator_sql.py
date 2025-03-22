@@ -47,6 +47,8 @@ class OrchestratorService_Sql:
         self._logs_root_uri = logs_root_uri
         self._default_task_annotations = default_task_annotations
         self._sleep_seconds_between_queue_sweeps = sleep_seconds_between_queue_sweeps
+        self._queued_executions_queue_idle = False
+        self._running_executions_queue_idle = False
 
     def run_loop(self):
         while True:
@@ -84,6 +86,7 @@ class OrchestratorService_Sql:
         )
         queued_execution = session.scalar(query)
         if queued_execution:
+            self._queued_executions_queue_idle = False
             _logger.info(f"Before processing {queued_execution.id=}")
             try:
                 self.internal_process_one_queued_execution(
@@ -99,7 +102,9 @@ class OrchestratorService_Sql:
             _logger.info(f"After processing {queued_execution.id=}")
             return True
         else:
-            _logger.debug(f"No queued executions found")
+            if not self._queued_executions_queue_idle:
+                self._queued_executions_queue_idle = True
+                _logger.debug(f"No queued executions found")
             return False
 
     def internal_process_running_executions_queue(self, session: orm.Session):
@@ -118,6 +123,7 @@ class OrchestratorService_Sql:
         )
         running_container_execution = session.scalar(query)
         if running_container_execution:
+            self._running_executions_queue_idle = False
             try:
                 _logger.info(f"Before processing {running_container_execution.id=}")
                 self.internal_process_one_running_execution(
@@ -148,7 +154,9 @@ class OrchestratorService_Sql:
                 session.commit()
             return True
         else:
-            _logger.debug(f"No running container executions found")
+            if not self._running_executions_queue_idle:
+                _logger.debug(f"No running container executions found")
+                self._running_executions_queue_idle = True
             return False
 
     def internal_process_one_queued_execution(
