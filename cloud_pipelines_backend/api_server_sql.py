@@ -251,6 +251,11 @@ class GetExecutionArtifactsResponse:
     output_artifacts: dict[str, "ArtifactNodeResponse"] | None = None
 
 
+@dataclasses.dataclass(kw_only=True)
+class GetContainerExecutionLogResponse:
+    log_text: str | None = None
+
+
 class ExecutionNodesApiService_Sql:
 
     def get(self, session: orm.Session, id: bts.IdType) -> GetExecutionInfoResponse:
@@ -429,6 +434,45 @@ class ExecutionNodesApiService_Sql:
             output_artifacts=output_artifacts,
         )
 
+    def get_container_execution_log(
+        self, session: orm.Session, id: bts.IdType
+    ) -> GetContainerExecutionLogResponse:
+        execution = session.get(bts.ExecutionNode, id)
+        if not execution:
+            raise ItemNotFoundError(f"Execution with {id=} does not exist.")
+        container_execution = execution.container_execution
+        if not container_execution:
+            raise RuntimeError(
+                f"Execution with {id=} does not have container execution information."
+            )
+        if container_execution.status in (
+            bts.ContainerExecutionStatus.SUCCEEDED,
+            bts.ContainerExecutionStatus.FAILED,
+        ):
+            # Returning completed log
+            if not container_execution.log_uri:
+                raise RuntimeError(
+                    f"Container execution {container_execution.id=} does not have log_uri. Impossible."
+                )
+            if not container_execution.log_uri.startswith("gs://"):
+                raise NotImplementedError(
+                    f"Only logs in Google Cloud Storage are supported. But got {container_execution.log_uri=}."
+                )
+            from google.cloud import storage
+
+            gcs_client = storage.Client()
+            blob = storage.Blob.from_string(
+                container_execution.log_uri, client=gcs_client
+            )
+            log_text = blob.download_as_text()
+            return GetContainerExecutionLogResponse(
+                log_text=log_text,
+            )
+        elif container_execution.status == bts.ContainerExecutionStatus.RUNNING:
+            # TODO: Implement
+            raise NotImplementedError()
+        else:
+            return GetContainerExecutionLogResponse(log_text=None)
 
 @dataclasses.dataclass(kw_only=True)
 class ArtifactNodeResponse:
