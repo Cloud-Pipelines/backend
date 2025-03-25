@@ -55,7 +55,7 @@ def main():
         k8s_config_lib.load_kube_config()
     k8s_client = k8s_client_lib.ApiClient()
 
-    k8s_client_lib.VersionApi(k8s_client).get_code()
+    k8s_client_lib.VersionApi(k8s_client).get_code(_request_timeout=5)
     logger.info("Kubernetes works")
 
     default_task_annotations = {

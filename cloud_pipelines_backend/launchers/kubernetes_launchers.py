@@ -149,7 +149,9 @@ class _KubernetesContainerLauncher(
         self._create_volume_and_volume_mount = _create_volume_and_volume_mount
 
         try:
-            k8s_client_lib.VersionApi(self._api_client).get_code()
+            k8s_client_lib.VersionApi(self._api_client).get_code(
+                _request_timeout=request_timeout
+            )
         except Exception as ex:
             raise RuntimeError(
                 "Connection to the Kubernetes cluster does not seem to be working."
