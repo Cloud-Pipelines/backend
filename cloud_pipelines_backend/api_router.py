@@ -205,6 +205,22 @@ def setup_routes(
         )
     )
 
+    @router.put(
+        "/api/admin/execution_node/{id}/status",
+        tags=["admin"],
+        # Hiding the admin methods from the public schema.
+        include_in_schema=False,
+        **default_config,
+    )
+    def admin_set_execution_node_status(
+        id: backend_types_sql.IdType,
+        status: backend_types_sql.ContainerExecutionStatus,
+        session: typing.Annotated[orm.Session, fastapi.Depends(get_session)],
+    ):
+        with session.begin():
+            execution_node = session.get(backend_types_sql.ExecutionNode, id)
+            execution_node.container_execution_status = status
+
     # # Needs to be called after all routes have been added to the router
     # app.include_router(router)
 
