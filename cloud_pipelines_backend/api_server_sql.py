@@ -438,7 +438,10 @@ class ExecutionNodesApiService_Sql:
         )
 
     def get_container_execution_log(
-        self, session: orm.Session, id: bts.IdType
+        self,
+        session: orm.Session,
+        id: bts.IdType,
+        container_launcher: "launcher_interfaces.ContainerTaskLauncher | None" = None,
     ) -> GetContainerExecutionLogResponse:
         execution = session.get(bts.ExecutionNode, id)
         if not execution:
@@ -472,8 +475,24 @@ class ExecutionNodesApiService_Sql:
                 log_text=log_text,
             )
         elif container_execution.status == bts.ContainerExecutionStatus.RUNNING:
-            # TODO: Implement
-            raise NotImplementedError()
+            if not container_launcher:
+                raise ApiServiceError(
+                    f"Reading log of an unfinished container requires `container_launcher`."
+                )
+            if not container_execution.launcher_data:
+                raise ApiServiceError(
+                    f"Execution does not have container launcher data."
+                )
+
+            launched_container = (
+                container_launcher.deserialize_launched_container_from_dict(
+                    container_execution.launcher_data
+                )
+            )
+            log_text = launched_container.get_log(launcher=container_launcher)
+            return GetContainerExecutionLogResponse(
+                log_text=log_text,
+            )
         else:
             return GetContainerExecutionLogResponse(log_text=None)
 

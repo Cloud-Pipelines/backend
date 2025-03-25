@@ -136,13 +136,19 @@ def setup_routes(
     router.get("/api/executions/{id}/artifacts", tags=["executions"], **default_config)(
         replace_annotations(execution_service.get_artifacts, orm.Session, SessionDep)
     )
-    router.get(
+
+    @router.get(
         "/api/executions/{id}/container_log", tags=["executions"], **default_config
-    )(
-        replace_annotations(
-            execution_service.get_container_execution_log, orm.Session, SessionDep
-        )
     )
+    def get_container_log(
+        id: backend_types_sql.IdType,
+        session: SessionDep,
+    ) -> api_server_sql.GetContainerExecutionLogResponse:
+        return execution_service.get_container_execution_log(
+            id=id,
+            session=session,
+            container_launcher=container_launcher_for_log_streaming,
+        )
 
     if container_launcher_for_log_streaming:
 
