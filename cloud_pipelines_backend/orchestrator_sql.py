@@ -201,7 +201,95 @@ class OrchestratorService_Sql:
         cache_key = _calculate_container_execution_cache_key(
             container_spec=container_spec, input_artifact_data=input_artifact_data
         )
-        # TODO: !!! Cache reuse
+
+        # Trying to reuse an older execution from cache.
+        # TODO: Support cache reuse options (max cached data staleness etc).
+        execution_candidates = session.scalars(
+            sql.select(bts.ExecutionNode)
+            .where(bts.ExecutionNode.container_execution_cache_key == cache_key)
+            .where(
+                bts.ExecutionNode.container_execution_status.in_(
+                    [
+                        # We can reuse both succeeded executions and also non yet finished ones.
+                        # Reusing still running executions is important since it allows cache reuse
+                        # when multiple versions of a pipeline are submitted in parallel.
+                        # bts.ContainerExecutionStatus.STARTING,  # Doesn't exist yet
+                        bts.ContainerExecutionStatus.PENDING,
+                        bts.ContainerExecutionStatus.RUNNING,
+                        bts.ContainerExecutionStatus.SUCCEEDED,
+                    ]
+                )
+            )
+            # TODO: Filter by purged==False. Or `expires_at`.
+            .join(bts.ContainerExecution)
+            .order_by(bts.ContainerExecution.created_at)
+        ).all()
+        non_purged_candidates = [
+            execution_candidate
+            for execution_candidate in execution_candidates
+            if not (execution_candidate.extra_data or {}).get("is_purged", False)
+        ]
+        if non_purged_candidates:
+            # Re-using the oldest candidate
+            old_execution = non_purged_candidates[0]
+            _logger.info(
+                f"Execution {execution.id=} will reuse the {old_execution.id=} with "
+                f"{old_execution.container_execution_id=}, {old_execution.container_execution_status=}"
+            )
+            # Reusing the execution:
+            if not execution.extra_data:
+                execution.extra_data = {}
+            execution.extra_data["reused_from_execution_node_id"] = old_execution.id
+
+            execution.container_execution_status = (
+                old_execution.container_execution_status
+            )
+
+            # If the execution is still running, it's enough to just link execution node to it.
+            # The container execution will set the outputs itself when it succeeds.
+            execution.container_execution_id = old_execution.container_execution_id
+            # However if the container execution has already ended, we need to copy the outputs ourselves.
+            if (
+                old_execution.container_execution_status
+                == bts.ContainerExecutionStatus.SUCCEEDED
+            ):
+                # Copying the output artifact data (if the execution already succeeded).
+                reused_execution_output_artifact_data_ids = {
+                    output_name: artifact_data_id
+                    for output_name, artifact_data_id in session.execute(
+                        sql.select(
+                            bts.OutputArtifactLink.output_name,
+                            bts.ArtifactNode.artifact_data_id,
+                        )
+                        .join(bts.OutputArtifactLink.artifact)
+                        .where(bts.OutputArtifactLink.execution_id == old_execution.id)
+                    ).tuples()
+                }
+                # Setting artifact data
+                for output_name, artifact_node in session.execute(
+                    sql.select(bts.OutputArtifactLink.output_name, bts.ArtifactNode)
+                    # TODO: Verify that this improves the performance
+                    .with_for_update()
+                    .join(bts.OutputArtifactLink.artifact)
+                    .where(bts.OutputArtifactLink.execution_id == execution.id)
+                ).tuples():
+                    artifact_node.artifact_data_id = (
+                        reused_execution_output_artifact_data_ids[output_name]
+                    )
+                # Waking up all direct downstream executions.
+                # Many of them will get processed and go back to WAITING_FOR_UPSTREAM state.
+                for downstream_execution in _get_direct_downstream_executions(
+                    session=session, execution=execution
+                ):
+                    if (
+                        downstream_execution.container_execution_status
+                        == bts.ContainerExecutionStatus.WAITING_FOR_UPSTREAM
+                    ):
+                        downstream_execution.container_execution_status = (
+                            bts.ContainerExecutionStatus.QUEUED
+                        )
+            session.commit()
+            return
 
         # Launching the container execution
 
