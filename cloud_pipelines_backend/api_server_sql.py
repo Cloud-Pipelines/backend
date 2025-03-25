@@ -286,7 +286,7 @@ class ExecutionNodesApiService_Sql:
                 sql.select(
                     bts.OutputArtifactLink.output_name,
                     bts.OutputArtifactLink.artifact_id,
-                ).where(bts.InputArtifactLink.execution_id == id)
+                ).where(bts.OutputArtifactLink.execution_id == id)
             ).tuples()
         }
         return GetExecutionInfoResponse(
