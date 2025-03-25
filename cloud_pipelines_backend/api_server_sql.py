@@ -504,7 +504,7 @@ class ExecutionNodesApiService_Sql:
     ) -> typing.Iterator[str]:
         execution = session.get(bts.ExecutionNode, execution_id)
         if not execution:
-            raise ItemNotFoundError(f"Execution with {id=} does not exist.")
+            raise ItemNotFoundError(f"Execution with {execution_id=} does not exist.")
         container_execution = execution.container_execution
         if not container_execution:
             raise ApiServiceError(
