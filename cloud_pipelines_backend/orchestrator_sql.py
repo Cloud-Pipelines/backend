@@ -416,11 +416,12 @@ class OrchestratorService_Sql:
         execution_nodes = container_execution.execution_nodes
         if not execution_nodes:
             raise OrchestratorError(
-                f"Could not find ExecutionNode associated with ContainerExecution. {container_execution=}"
+                f"Could not find ExecutionNode associated with ContainerExecution. {container_execution.id=}"
             )
         if len(execution_nodes) > 1:
+            execution_node_ids = [execution.id for execution in execution_nodes]
             _logger.warning(
-                f"ContainerExecution is associated with multiple ExecutionNodes: {container_execution=}, {execution_nodes=}"
+                f"ContainerExecution is associated with multiple ExecutionNodes: {container_execution.id=}, {execution_node_ids=}"
             )
 
         if new_status == launcher_interfaces.ContainerStatus.RUNNING:
