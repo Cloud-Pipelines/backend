@@ -432,9 +432,7 @@ class OrchestratorService_Sql:
                 )
         elif new_status == launcher_interfaces.ContainerStatus.SUCCEEDED:
             _retry(
-                lambda: reloaded_launched_container.upload_log(
-                    launcher=self._launcher
-                )
+                lambda: reloaded_launched_container.upload_log(launcher=self._launcher)
             )
             _MAX_PRELOAD_VALUE_SIZE = 255
 
@@ -460,9 +458,7 @@ class OrchestratorService_Sql:
             }
             output_artifact_data_info_map = {
                 output_name: _retry(
-                    lambda: self._storage_provider.make_uri(uri)
-                    .get_reader()
-                    .get_info()
+                    lambda: self._storage_provider.make_uri(uri).get_reader().get_info()
                 )
                 for output_name, uri in output_artifact_uris.items()
             }
@@ -519,9 +515,7 @@ class OrchestratorService_Sql:
             container_execution.status = bts.ContainerExecutionStatus.FAILED
             container_execution.exit_code = reloaded_launched_container.exit_code
             _retry(
-                lambda: reloaded_launched_container.upload_log(
-                    launcher=self._launcher
-                )
+                lambda: reloaded_launched_container.upload_log(launcher=self._launcher)
             )
             # Skip downstream executions
             for execution_node in execution_nodes:
