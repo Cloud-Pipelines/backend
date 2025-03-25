@@ -23,6 +23,7 @@ def setup_routes(
     app: fastapi.FastAPI,
     database_uri: str,
     get_user_name: typing.Callable[[], str] | None = None,
+    ensure_admin_user: typing.Callable | None = None,
     container_launcher_for_log_streaming: (
         "launcher_interfaces.ContainerTaskLauncher | None"
     ) = None,
@@ -105,17 +106,6 @@ def setup_routes(
         response_model_exclude_defaults=True,
         response_model_exclude_none=True,
     )
-
-    @router.put(
-        "/api/admin/set_read_only_model",
-        tags=["admin"],
-        # Hiding the admin methods from the public schema.
-        include_in_schema=False,
-        **default_config,
-    )
-    def admin_set_read_only_model(read_only: bool):
-        nonlocal is_read_only
-        is_read_only = read_only
 
     SessionDep = typing.Annotated[orm.Session, fastapi.Depends(get_session)]
 
@@ -206,10 +196,27 @@ def setup_routes(
     )
 
     @router.put(
+        "/api/admin/set_read_only_model",
+        tags=["admin"],
+        # Hiding the admin methods from the public schema.
+        # include_in_schema=False,
+        dependencies=(
+            [fastapi.Depends(ensure_admin_user)] if ensure_admin_user else None
+        ),
+        **default_config,
+    )
+    def admin_set_read_only_model(read_only: bool):
+        nonlocal is_read_only
+        is_read_only = read_only
+
+    @router.put(
         "/api/admin/execution_node/{id}/status",
         tags=["admin"],
         # Hiding the admin methods from the public schema.
-        include_in_schema=False,
+        # include_in_schema=False,
+        dependencies=(
+            [fastapi.Depends(ensure_admin_user)] if ensure_admin_user else None
+        ),
         **default_config,
     )
     def admin_set_execution_node_status(
