@@ -116,26 +116,41 @@ class PipelineRunsApiService_Sql:
         session: orm.Session,
         page_token: str | None = None,
         # page_size: int  = 10,
-        # filter: str | None = None,
+        filter: str | None = None,
     ) -> ListPipelineJobsResponse:
-        # if filter:
-        #     raise NotImplementedError("filter is not implemented yet")
         page_token_dict = _decode_page_token(page_token)
         OFFSET_KEY = "offset"
         page_idx = page_token_dict.get(OFFSET_KEY, 0)
         page_size = 10
         offset = page_idx * page_size
 
+        FILTER_KEY = "filter"
+        if page_token:
+            filter = page_token_dict.get(FILTER_KEY, None)
+        where_clauses = []
+        parsed_filter = _parse_filter(filter) if filter else None
+        for key, value in parsed_filter.items():
+            if key == "_text":
+                raise NotImplementedError("Text search is not implemented yet.")
+            elif key == "created_by":
+                if value:
+                    where_clauses.append(bts.PipelineRun.created_by == value)
+                else:
+                    where_clauses.append(bts.PipelineRun.created_by == None)
+            else:
+                raise NotImplementedError(f"Unsupported filter {filter}.")
+
         pipeline_runs = list(
             session.scalars(
                 sql.select(bts.PipelineRun)
+                .where(*where_clauses)
                 .order_by(bts.PipelineRun.created_at.desc())
                 .offset(offset)
                 .limit(page_size)
             ).all()
         )
         next_page_offset = page_idx + page_size
-        next_page_token_dict = {OFFSET_KEY: next_page_offset}
+        next_page_token_dict = {OFFSET_KEY: next_page_offset, FILTER_KEY: filter}
         next_page_token = _encode_page_token(next_page_token_dict)
         if len(pipeline_runs) < page_size:
             next_page_token = None
@@ -157,6 +172,19 @@ def _encode_page_token(page_token_dict: dict[str, Any]) -> str:
         "utf-8"
     )
 
+
+def _parse_filter(filter: str) -> dict[str, str]:
+    # TODO: Improve
+    parts = filter.strip().split()
+    parsed_filter = {}
+    for part in parts:
+        key, sep, value = part.partition(":")
+        if sep:
+            parsed_filter[key] = value
+        else:
+            parsed_filter.setdefault("_text", "")
+            parsed_filter["_text"] += part
+    return parsed_filter
 
 
 # ========== ExecutionNodeApiService_Mongo
