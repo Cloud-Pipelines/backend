@@ -162,8 +162,17 @@ def setup_routes(
                 media_type="text/event-stream",
             )
 
+    list_pipeline_runs_func = pipeline_run_service.list
+    if get_user_name:
+        # The `created_by` parameter value now comes from a Dependency (instead of request)
+        list_pipeline_runs_func = add_parameter_annotation_metadata(
+            list_pipeline_runs_func,
+            parameter_name="current_user",
+            annotation_metadata=fastapi.Depends(get_user_name),
+        )
+
     router.get("/api/pipeline_runs/", tags=["pipelineRuns"], **default_config)(
-        replace_annotations(pipeline_run_service.list, orm.Session, SessionDep)
+        replace_annotations(list_pipeline_runs_func, orm.Session, SessionDep)
     )
     router.get("/api/pipeline_runs/{id}", tags=["pipelineRuns"], **default_config)(
         replace_annotations(pipeline_run_service.get, orm.Session, SessionDep)

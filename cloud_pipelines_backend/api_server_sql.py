@@ -113,10 +113,12 @@ class PipelineRunsApiService_Sql:
     # Note: This method must be last to not shadow the "list" type
     def list(
         self,
+        *,
         session: orm.Session,
         page_token: str | None = None,
         # page_size: int  = 10,
         filter: str | None = None,
+        current_user: str | None = None,
     ) -> ListPipelineJobsResponse:
         page_token_dict = _decode_page_token(page_token)
         OFFSET_KEY = "offset"
@@ -133,6 +135,18 @@ class PipelineRunsApiService_Sql:
             if key == "_text":
                 raise NotImplementedError("Text search is not implemented yet.")
             elif key == "created_by":
+                if value == "me":
+                    if current_user is None:
+                        # raise ApiServiceError(
+                        #     f"The `created_by:me` filter requires `current_user`."
+                        # )
+                        current_user = ""
+                    value = current_user
+                    # TODO: Maybe make this a bit more robust.
+                    # We need to change the filter since it goes into the next_page_token.
+                    filter = filter.replace(
+                        "created_by:me", f"created_by:{current_user}"
+                    )
                 if value:
                     where_clauses.append(bts.PipelineRun.created_by == value)
                 else:
