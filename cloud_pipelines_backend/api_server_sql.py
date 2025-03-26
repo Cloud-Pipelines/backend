@@ -1,5 +1,7 @@
+import base64
 import dataclasses
 import datetime
+import json
 import logging
 import typing
 from typing import Any, Optional
@@ -118,9 +120,9 @@ class PipelineRunsApiService_Sql:
     ) -> ListPipelineJobsResponse:
         # if filter:
         #     raise NotImplementedError("filter is not implemented yet")
-
-        # TODO: Implement proper page tokens
-        page_idx = int(page_token) if page_token else 0
+        page_token_dict = _decode_page_token(page_token)
+        OFFSET_KEY = "offset"
+        page_idx = page_token_dict.get(OFFSET_KEY, 0)
         page_size = 10
         offset = page_idx * page_size
 
@@ -132,7 +134,9 @@ class PipelineRunsApiService_Sql:
                 .limit(page_size)
             ).all()
         )
-        next_page_token = str(page_idx + page_size)
+        next_page_offset = page_idx + page_size
+        next_page_token_dict = {OFFSET_KEY: next_page_offset}
+        next_page_token = _encode_page_token(next_page_token_dict)
         if len(pipeline_runs) < page_size:
             next_page_token = None
         return ListPipelineJobsResponse(
@@ -142,6 +146,17 @@ class PipelineRunsApiService_Sql:
             ],
             next_page_token=next_page_token,
         )
+
+
+def _decode_page_token(page_token: str) -> dict[str, Any]:
+    return json.loads(base64.b64decode(page_token)) if page_token else {}
+
+
+def _encode_page_token(page_token_dict: dict[str, Any]) -> str:
+    return (base64.b64encode(json.dumps(page_token_dict).encode("utf8"))).decode(
+        "utf-8"
+    )
+
 
 
 # ========== ExecutionNodeApiService_Mongo
