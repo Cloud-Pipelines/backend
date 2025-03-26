@@ -130,7 +130,7 @@ class PipelineRunsApiService_Sql:
         if page_token:
             filter = page_token_dict.get(FILTER_KEY, None)
         where_clauses = []
-        parsed_filter = _parse_filter(filter) if filter else None
+        parsed_filter = _parse_filter(filter) if filter else {}
         for key, value in parsed_filter.items():
             if key == "_text":
                 raise NotImplementedError("Text search is not implemented yet.")
