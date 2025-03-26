@@ -133,6 +133,8 @@ class PipelineRunsApiService_Sql:
             ).all()
         )
         next_page_token = str(page_idx + page_size)
+        if len(pipeline_runs) < page_size:
+            next_page_token = None
         return ListPipelineJobsResponse(
             pipeline_runs=[
                 PipelineRunResponse.from_db(pipeline_run)
