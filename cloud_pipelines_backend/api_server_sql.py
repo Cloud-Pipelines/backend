@@ -122,9 +122,8 @@ class PipelineRunsApiService_Sql:
     ) -> ListPipelineJobsResponse:
         page_token_dict = _decode_page_token(page_token)
         OFFSET_KEY = "offset"
-        page_idx = page_token_dict.get(OFFSET_KEY, 0)
+        offset = page_token_dict.get(OFFSET_KEY, 0)
         page_size = 10
-        offset = page_idx * page_size
 
         FILTER_KEY = "filter"
         if page_token:
@@ -153,7 +152,6 @@ class PipelineRunsApiService_Sql:
                     where_clauses.append(bts.PipelineRun.created_by == None)
             else:
                 raise NotImplementedError(f"Unsupported filter {filter}.")
-
         pipeline_runs = list(
             session.scalars(
                 sql.select(bts.PipelineRun)
@@ -163,7 +161,7 @@ class PipelineRunsApiService_Sql:
                 .limit(page_size)
             ).all()
         )
-        next_page_offset = page_idx + page_size
+        next_page_offset = offset + page_size
         next_page_token_dict = {OFFSET_KEY: next_page_offset, FILTER_KEY: filter}
         next_page_token = _encode_page_token(next_page_token_dict)
         if len(pipeline_runs) < page_size:
