@@ -34,7 +34,7 @@ class ItemNotFoundError(Exception):
 # ==== PipelineJobService
 @dataclasses.dataclass(kw_only=True)
 class PipelineRunResponse:
-    id: int
+    id: bts.IdType
     root_execution_id: bts.IdType
     annotations: dict[str, Any] | None = None
     # status: "PipelineJobStatus"

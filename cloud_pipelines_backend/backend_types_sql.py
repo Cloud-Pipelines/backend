@@ -145,7 +145,7 @@ class _TableBase(orm.MappedAsDataclass, orm.DeclarativeBase, kw_only=True):
 
 class PipelineRun(_TableBase):
     __tablename__ = "pipeline_run"
-    id: orm.Mapped[int] = orm.mapped_column(primary_key=True, init=False)
+    id: orm.Mapped[IdType] = orm.mapped_column(primary_key=True, init=False)
     # pipeline_spec: orm.Mapped[dict[str, Any]]
     root_execution_id: orm.Mapped[IdType] = orm.mapped_column(
         sql.ForeignKey("execution_node.id"), init=False
