@@ -16,7 +16,7 @@ try:
 except ImportError:
     from cloud_pipelines_backend import component_structures as structures
 
-IdType: typing.TypeAlias = int
+IdType: typing.TypeAlias = str
 
 
 class ContainerExecutionStatus(str, enum.Enum):
@@ -92,6 +92,25 @@ class _BaseModel:
         return pydantic.TypeAdapter(cls).validate_python(d)
 
 
+def generate_unique_id() -> str:
+    """Generates a 10-byte (20 hex chars) unique ID.session.add
+
+    The ID is 6 bytes of millisecond-precision time plus 4 random bytes.
+    """
+    import os
+    import time
+
+    random_bytes = os.urandom(4)
+    nanoseconds = time.time_ns()
+    milliseconds = nanoseconds // 1_000_000
+
+    return ("%012x" % milliseconds) + random_bytes.hex()
+
+
+id_column = orm.mapped_column(sql.String(20),
+    primary_key=True, init=False, insert_default=generate_unique_id
+)
+
 # # Needed to put a union type into DB
 # class SqlIOTypeStruct(_BaseModel):
 #     type: structures.TypeSpecType
@@ -145,7 +164,9 @@ class _TableBase(orm.MappedAsDataclass, orm.DeclarativeBase, kw_only=True):
 
 class PipelineRun(_TableBase):
     __tablename__ = "pipeline_run"
-    id: orm.Mapped[IdType] = orm.mapped_column(primary_key=True, init=False)
+    id: orm.Mapped[IdType] = orm.mapped_column(
+        primary_key=True, init=False, insert_default=generate_unique_id
+    )
     # pipeline_spec: orm.Mapped[dict[str, Any]]
     root_execution_id: orm.Mapped[IdType] = orm.mapped_column(
         sql.ForeignKey("execution_node.id"), init=False
@@ -168,14 +189,16 @@ class PipelineRun(_TableBase):
 
 class ArtifactData(_TableBase):
     __tablename__ = "artifact_data"
-    id: orm.Mapped[IdType] = orm.mapped_column(primary_key=True, init=False)
+    id: orm.Mapped[IdType] = orm.mapped_column(
+        primary_key=True, init=False, insert_default=generate_unique_id
+    )
     total_size: orm.Mapped[int]
     is_dir: orm.Mapped[bool]
     hash: orm.Mapped[str]
     # At least one of `uri` or `value` must be set
     uri: orm.Mapped[str | None] = orm.mapped_column(default=None)
     # Small constant value
-    value: orm.Mapped[str | None] = orm.mapped_column(default=None)
+    value: orm.Mapped[str | None] = orm.mapped_column(sql.String(65535), default=None)
     created_at: orm.Mapped[datetime.datetime | None] = orm.mapped_column(default=None)
     # TODO: Think about a race condition where an artifact is purged right when it's going to be reused.
     deleted_at: orm.Mapped[datetime.datetime | None] = orm.mapped_column(default=None)
@@ -189,7 +212,9 @@ class ArtifactData(_TableBase):
 
 class ArtifactNode(_TableBase):
     __tablename__ = "artifact_node"
-    id: orm.Mapped[IdType] = orm.mapped_column(primary_key=True, init=False)
+    id: orm.Mapped[IdType] = orm.mapped_column(
+        primary_key=True, init=False, insert_default=generate_unique_id
+    )
     had_data_in_past: orm.Mapped[bool] = orm.mapped_column(default=False)
     may_have_data_in_future: orm.Mapped[bool] = orm.mapped_column(default=True)
     # artifact_type: orm.Mapped[structures.TypeSpecType | None]
@@ -290,7 +315,9 @@ class ExecutionToAncestorExecutionLink(_TableBase):
 # So we need to jump through extra hoops to make the relationship many-to-many again.
 class ExecutionNode(_TableBase):
     __tablename__ = "execution_node"
-    id: orm.Mapped[IdType] = orm.mapped_column(primary_key=True, init=False)
+    id: orm.Mapped[IdType] = orm.mapped_column(
+        primary_key=True, init=False, insert_default=generate_unique_id
+    )
     # input_artifacts
     # task_id: str | None = None
     # task_spec: structures.TaskSpec
@@ -428,7 +455,9 @@ class ExecutionNode(_TableBase):
 
 class ContainerExecution(_TableBase):
     __tablename__ = "container_execution"
-    id: orm.Mapped[IdType] = orm.mapped_column(primary_key=True, init=False)
+    id: orm.Mapped[IdType] = orm.mapped_column(
+        primary_key=True, init=False, insert_default=generate_unique_id
+    )
     # task_spec: orm.Mapped[dict[str, Any]]
     status: orm.Mapped[ContainerExecutionStatus]
     last_processed_at: orm.Mapped[datetime.datetime | None] = orm.mapped_column(
