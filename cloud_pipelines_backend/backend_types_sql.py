@@ -200,7 +200,7 @@ class ArtifactData(_TableBase):
     # Small constant value
     # sql.String(65535) is translated to VARCHAR(65535) which fails on MySQL:
     # "Column length too big for column 'value' (max = 16383); use BLOB or TEXT instead"
-    value: orm.Mapped[str | None] = orm.mapped_column(sql.String(16383), default=None)
+    value: orm.Mapped[str | None] = orm.mapped_column(sql.Text(), default=None)
     created_at: orm.Mapped[datetime.datetime | None] = orm.mapped_column(default=None)
     # TODO: Think about a race condition where an artifact is purged right when it's going to be reused.
     deleted_at: orm.Mapped[datetime.datetime | None] = orm.mapped_column(default=None)
