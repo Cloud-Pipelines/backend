@@ -446,6 +446,7 @@ class OrchestratorService_Sql:
             },
             log_uri=log_uri,
         )
+        container_execution.id = container_execution_uuid
 
         # Need to commit/rollback before explicitly beginning non-nested transaction.
         session.rollback()
