@@ -192,7 +192,8 @@ class ArtifactData(_TableBase):
     id: orm.Mapped[IdType] = orm.mapped_column(
         primary_key=True, init=False, insert_default=generate_unique_id
     )
-    total_size: orm.Mapped[int]
+    # Default SQL integer type is only 32 bit. So it cannot record size of more than 2GB.
+    total_size: orm.Mapped[int] = orm.mapped_column(sql.BigInteger())
     is_dir: orm.Mapped[bool]
     hash: orm.Mapped[str]
     # At least one of `uri` or `value` must be set
