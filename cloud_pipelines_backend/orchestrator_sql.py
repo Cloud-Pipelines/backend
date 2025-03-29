@@ -515,6 +515,7 @@ class OrchestratorService_Sql:
 
         if new_status == launcher_interfaces.ContainerStatus.RUNNING:
             container_execution.status = bts.ContainerExecutionStatus.RUNNING
+            container_execution.started_at = reloaded_launched_container.started_at
             for execution_node in execution_nodes:
                 execution_node.container_execution_status = (
                     bts.ContainerExecutionStatus.RUNNING
@@ -574,6 +575,8 @@ class OrchestratorService_Sql:
             session.add_all(new_output_artifact_data_map.values())
             container_execution.status = bts.ContainerExecutionStatus.SUCCEEDED
             container_execution.exit_code = reloaded_launched_container.exit_code
+            container_execution.started_at = reloaded_launched_container.started_at
+            container_execution.ended_at = reloaded_launched_container.ended_at
             for execution_node in execution_nodes:
                 execution_node.container_execution_status = (
                     bts.ContainerExecutionStatus.SUCCEEDED
@@ -603,6 +606,8 @@ class OrchestratorService_Sql:
         elif new_status == launcher_interfaces.ContainerStatus.FAILED:
             container_execution.status = bts.ContainerExecutionStatus.FAILED
             container_execution.exit_code = reloaded_launched_container.exit_code
+            container_execution.started_at = reloaded_launched_container.started_at
+            container_execution.ended_at = reloaded_launched_container.ended_at
             _retry(
                 lambda: reloaded_launched_container.upload_log(launcher=self._launcher)
             )
