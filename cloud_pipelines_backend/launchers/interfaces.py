@@ -2,6 +2,7 @@
 
 import abc
 import dataclasses
+import datetime
 import enum
 
 import typing
@@ -93,6 +94,14 @@ class LaunchedContainer(abc.ABC, typing.Generic[_TLauncher]):
 
     @property
     def has_failed(self) -> bool:
+        raise NotImplementedError()
+
+    @property
+    def started_at(self) -> datetime.datetime | None:
+        raise NotImplementedError()
+
+    @property
+    def ended_at(self) -> datetime.datetime | None:
         raise NotImplementedError()
 
     def upload_logs(self):

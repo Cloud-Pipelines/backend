@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import datetime
 import logging
 import os
 import pathlib
@@ -456,9 +457,9 @@ class LaunchedKubernetesContainer(
         self._log_uri = log_uri
         self._debug_pod = debug_pod
 
-    def _get_main_container_terminated_state(
+    def _get_main_container_state(
         self,
-    ) -> k8s_client_lib.V1ContainerStateTerminated | None:
+    ) -> k8s_client_lib.V1ContainerState | None:
         pod_status: k8s_client_lib.V1PodStatus = self._debug_pod.status
         if not pod_status or not pod_status.container_statuses:
             return None
@@ -478,7 +479,15 @@ class LaunchedKubernetesContainer(
         main_container_state: k8s_client_lib.V1ContainerState = (
             main_container_status.state
         )
-        return main_container_state.terminated
+        return main_container_state
+
+    def _get_main_container_terminated_state(
+        self,
+    ) -> k8s_client_lib.V1ContainerStateTerminated | None:
+        state = self._get_main_container_state()
+        if not state:
+            return None
+        return state.terminated
 
     # @property
     # def id(self) -> str:
@@ -517,6 +526,25 @@ class LaunchedKubernetesContainer(
     @property
     def has_failed(self) -> bool:
         return self.status == interfaces.ContainerStatus.FAILED
+
+    @property
+    def started_at(self) -> datetime.datetime | None:
+        main_container_state = self._get_main_container_state()
+        if main_container_state is None:
+            return None
+        running_state: k8s_client_lib.V1ContainerStateRunning = (
+            main_container_state.running
+        )
+        if running_state is None:
+            return None
+        return running_state.started_at
+
+    @property
+    def ended_at(self) -> datetime.datetime | None:
+        terminated_state = self._get_main_container_terminated_state()
+        if terminated_state is None:
+            return None
+        return terminated_state.finished_at
 
     def to_dict(self) -> dict[str, Any]:
         pod_dict = _kubernetes_serialize(self._debug_pod)
