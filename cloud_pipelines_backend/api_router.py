@@ -124,6 +124,11 @@ def setup_routes(
         get_graph_execution_state
     )
     router.get(
+        "/api/executions/{id}/graph_execution_state",
+        tags=["executions"],
+        **default_config,
+    )(get_graph_execution_state)
+    router.get(
         "/api/executions/{id}/container_state", tags=["executions"], **default_config
     )(
         replace_annotations(
