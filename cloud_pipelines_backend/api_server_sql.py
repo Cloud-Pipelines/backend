@@ -311,6 +311,14 @@ class GetExecutionArtifactsResponse:
     output_artifacts: dict[str, "ArtifactNodeResponse"] | None = None
 
 
+@dataclasses.dataclass
+class GetContainerExecutionStateResponse:
+    status: bts.ContainerExecutionStatus
+    exit_code: int | None = None
+    started_at: datetime.datetime | None = None
+    ended_at: datetime.datetime | None = None
+
+
 @dataclasses.dataclass(kw_only=True)
 class GetContainerExecutionLogResponse:
     log_text: str | None = None
@@ -448,6 +456,24 @@ class ExecutionNodesApiService_Sql:
             status_stats[status.value] = count
         return GetGraphExecutionStateResponse(
             child_execution_status_stats=child_execution_status_stats,
+        )
+
+    def get_container_execution_state(
+        self, session: orm.Session, id: bts.IdType
+    ) -> GetContainerExecutionStateResponse:
+        execution = session.get(bts.ExecutionNode, id)
+        if not execution:
+            raise ItemNotFoundError(f"Execution with {id=} does not exist.")
+        container_execution = execution.container_execution
+        if not container_execution:
+            raise RuntimeError(
+                f"Execution with {id=} does not have container execution information."
+            )
+        return GetContainerExecutionStateResponse(
+            status=container_execution.status,
+            exit_code=container_execution.exit_code,
+            started_at=container_execution.started_at,
+            ended_at=container_execution.ended_at,
         )
 
     def get_artifacts(
