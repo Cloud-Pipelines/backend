@@ -3,6 +3,7 @@ import json
 import datetime
 import logging
 import time
+import traceback
 import typing
 from typing import Any
 
@@ -92,12 +93,13 @@ class OrchestratorService_Sql:
                 self.internal_process_one_queued_execution(
                     session=session, execution=queued_execution
                 )
-            except:
+            except Exception as ex:
                 _logger.exception(f"Error processing {queued_execution.id=}")
                 session.rollback()
                 queued_execution.container_execution_status = (
                     bts.ContainerExecutionStatus.SYSTEM_ERROR
                 )
+                record_system_error_exception(execution=queued_execution, exception=ex)
                 session.commit()
             _logger.info(f"After processing {queued_execution.id=}")
             return True
@@ -130,7 +132,7 @@ class OrchestratorService_Sql:
                     session=session, container_execution=running_container_execution
                 )
                 _logger.info(f"After processing {running_container_execution.id=}")
-            except:
+            except Exception as ex:
                 _logger.exception(f"Error processing {running_container_execution.id=}")
                 session.rollback()
                 running_container_execution.status = (
@@ -143,6 +145,9 @@ class OrchestratorService_Sql:
                 for execution_node in execution_nodes:
                     execution_node.container_execution_status = (
                         bts.ContainerExecutionStatus.SYSTEM_ERROR
+                    )
+                    record_system_error_exception(
+                        execution=execution_node, exception=ex
                     )
                 # Doing an intermediate commit here because it's most important to mark the problematic node as SYSTEM_ERROR.
                 session.commit()
@@ -406,7 +411,7 @@ class OrchestratorService_Sql:
                 raise OrchestratorError(
                     f"Unexpected status of just launched container: {launched_container.status=}, {launched_container=}"
                 )
-        except:
+        except Exception as ex:
             session.rollback()
             with session.begin():
                 # Logs whole exception
@@ -414,6 +419,7 @@ class OrchestratorService_Sql:
                 execution.container_execution_status = (
                     bts.ContainerExecutionStatus.SYSTEM_ERROR
                 )
+                record_system_error_exception(execution=execution, exception=ex)
                 _mark_all_downstream_executions_as_skipped(
                     session=session, execution=execution
                 )
@@ -747,3 +753,12 @@ def _retry(
             if i == max_retries - 1:
                 raise
     raise
+
+
+def record_system_error_exception(execution: bts.ExecutionNode, exception: Exception):
+    if execution.extra_data is None:
+        execution.extra_data = {}
+    execution.extra_data["system_error_exception_message"] = "".join(
+        traceback.format_exception_only(type(exception), exception)
+    )
+    execution.extra_data["system_error_exception_full"] = traceback.format_exc()
