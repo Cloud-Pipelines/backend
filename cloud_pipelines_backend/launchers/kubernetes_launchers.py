@@ -207,7 +207,18 @@ class _KubernetesContainerLauncher(
                 uri_reader = self._storage_provider.make_uri(
                     input_argument.uri
                 ).get_reader()
-                value = uri_reader.download_as_text()
+                try:
+                    data = uri_reader.download_as_bytes()
+                except Exception as ex:
+                    raise interfaces.LauncherError(
+                        f"Error downloading artifact data. {input_name=}, {input_argument.uri=}"
+                    ) from ex
+                try:
+                    value = data.decode("utf-8")
+                except Exception as ex:
+                    raise interfaces.LauncherError(
+                        f"Error converting artifact data to text. {input_name=}, {input_argument.uri=}"
+                    ) from ex
                 # Updating the input_arguments with the downloaded value
                 input_argument.value = value
             return value
@@ -223,7 +234,12 @@ class _KubernetesContainerLauncher(
                 uri_writer = self._storage_provider.make_uri(
                     input_argument.staging_uri
                 ).get_writer()
-                uri_writer.upload_from_text(input_argument.value)
+                try:
+                    uri_writer.upload_from_text(input_argument.value)
+                except Exception as ex:
+                    raise interfaces.LauncherError(
+                        f"Error uploading argument value. {input_name=}, {input_argument=}"
+                    ) from ex
                 uri = input_argument.staging_uri
                 # Updating the input_arguments with the URI of the uploaded value
                 input_argument.uri = uri
