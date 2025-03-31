@@ -417,6 +417,7 @@ class OrchestratorService_Sql:
                 _mark_all_downstream_executions_as_skipped(
                     session=session, execution=execution
                 )
+            return
 
         current_time = _get_current_time()
 
