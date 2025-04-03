@@ -443,6 +443,14 @@ class ExecutionNode(_TableBase):
     )
 
 
+EXECUTION_NODE_EXTRA_DATA_SYSTEM_ERROR_EXCEPTION_MESSAGE_KEY = (
+    "system_error_exception_message"
+)
+EXECUTION_NODE_EXTRA_DATA_SYSTEM_ERROR_EXCEPTION_FULL_KEY = (
+    "system_error_exception_full"
+)
+
+
 # Not needed. We can use the ExecutionToAncestorExecutionLink.ancestor_execution_id == PipelineRun.root_execution_id
 # class ExecutionToPipelineRunLink(_TableBase):
 #     __tablename__ = "execution_pipeline_run"

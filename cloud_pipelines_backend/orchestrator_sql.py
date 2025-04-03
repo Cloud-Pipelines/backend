@@ -758,7 +758,9 @@ def _retry(
 def record_system_error_exception(execution: bts.ExecutionNode, exception: Exception):
     if execution.extra_data is None:
         execution.extra_data = {}
-    execution.extra_data["system_error_exception_message"] = "".join(
-        traceback.format_exception_only(type(exception), exception)
-    )
-    execution.extra_data["system_error_exception_full"] = traceback.format_exc()
+    execution.extra_data[
+        bts.EXECUTION_NODE_EXTRA_DATA_SYSTEM_ERROR_EXCEPTION_MESSAGE_KEY
+    ] = "".join(traceback.format_exception_only(type(exception), exception))
+    execution.extra_data[
+        bts.EXECUTION_NODE_EXTRA_DATA_SYSTEM_ERROR_EXCEPTION_FULL_KEY
+    ] = traceback.format_exc()

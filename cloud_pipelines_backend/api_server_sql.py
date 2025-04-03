@@ -322,6 +322,7 @@ class GetContainerExecutionStateResponse:
 @dataclasses.dataclass(kw_only=True)
 class GetContainerExecutionLogResponse:
     log_text: str | None = None
+    system_error_exception_full: str | None = None
 
 
 class ExecutionNodesApiService_Sql:
@@ -530,33 +531,52 @@ class ExecutionNodesApiService_Sql:
         if not execution:
             raise ItemNotFoundError(f"Execution with {id=} does not exist.")
         container_execution = execution.container_execution
+        execution_extra_data = execution.extra_data or {}
+        system_error_exception_full = execution_extra_data.get(
+            bts.EXECUTION_NODE_EXTRA_DATA_SYSTEM_ERROR_EXCEPTION_FULL_KEY
+        )
         if not container_execution:
+            if (
+                execution.container_execution_status
+                == bts.ContainerExecutionStatus.SYSTEM_ERROR
+            ):
+                return GetContainerExecutionLogResponse(
+                    system_error_exception_full=system_error_exception_full,
+                )
             raise RuntimeError(
                 f"Execution with {id=} does not have container execution information."
             )
+        log_text: str | None = None
         if container_execution.status in (
             bts.ContainerExecutionStatus.SUCCEEDED,
             bts.ContainerExecutionStatus.FAILED,
+            bts.ContainerExecutionStatus.SYSTEM_ERROR,
         ):
-            # Returning completed log
-            if not container_execution.log_uri:
-                raise RuntimeError(
-                    f"Container execution {container_execution.id=} does not have log_uri. Impossible."
-                )
-            if not container_execution.log_uri.startswith("gs://"):
-                raise NotImplementedError(
-                    f"Only logs in Google Cloud Storage are supported. But got {container_execution.log_uri=}."
-                )
-            from google.cloud import storage
+            try:
+                # Returning completed log
+                if not container_execution.log_uri:
+                    raise RuntimeError(
+                        f"Container execution {container_execution.id=} does not have log_uri. Impossible."
+                    )
+                if not container_execution.log_uri.startswith("gs://"):
+                    raise NotImplementedError(
+                        f"Only logs in Google Cloud Storage are supported. But got {container_execution.log_uri=}."
+                    )
+                from google.cloud import storage
 
-            gcs_client = storage.Client()
-            blob = storage.Blob.from_string(
-                container_execution.log_uri, client=gcs_client
-            )
-            log_text = blob.download_as_text()
-            return GetContainerExecutionLogResponse(
-                log_text=log_text,
-            )
+                gcs_client = storage.Client()
+                blob = storage.Blob.from_string(
+                    container_execution.log_uri, client=gcs_client
+                )
+                log_text = blob.download_as_text()
+            except:
+                # Do not raise exception if the execution is in SYSTEM_ERROR state
+                # We want to return the system error exception.
+                if (
+                    container_execution.status
+                    != bts.ContainerExecutionStatus.SYSTEM_ERROR
+                ):
+                    raise
         elif container_execution.status == bts.ContainerExecutionStatus.RUNNING:
             if not container_launcher:
                 raise ApiServiceError(
@@ -573,11 +593,11 @@ class ExecutionNodesApiService_Sql:
                 )
             )
             log_text = launched_container.get_log(launcher=container_launcher)
-            return GetContainerExecutionLogResponse(
-                log_text=log_text,
-            )
-        else:
-            return GetContainerExecutionLogResponse(log_text=None)
+
+        return GetContainerExecutionLogResponse(
+            log_text=log_text,
+            system_error_exception_full=system_error_exception_full,
+        )
 
     def stream_container_execution_log(
         self,
