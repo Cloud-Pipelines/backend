@@ -40,6 +40,7 @@ class OrchestratorService_Sql:
         logs_root_uri: str,
         default_task_annotations: dict[str, Any] | None = None,
         sleep_seconds_between_queue_sweeps: float = 1.0,
+        output_data_purge_duration: datetime.timedelta = None,
     ):
         self._session_factory = session_factory
         self._launcher = launcher
@@ -50,6 +51,7 @@ class OrchestratorService_Sql:
         self._sleep_seconds_between_queue_sweeps = sleep_seconds_between_queue_sweeps
         self._queued_executions_queue_idle = False
         self._running_executions_queue_idle = False
+        self._output_data_purge_duration = output_data_purge_duration
 
     def run_loop(self):
         while True:
@@ -234,6 +236,22 @@ class OrchestratorService_Sql:
             for execution_candidate in execution_candidates
             if not (execution_candidate.extra_data or {}).get("is_purged", False)
         ]
+        if self._output_data_purge_duration:
+            current_time = datetime.datetime.now(datetime.timezone.utc)
+            data_purge_threshold_time = current_time - self._output_data_purge_duration
+            non_purged_candidates = [
+                execution_candidate
+                for execution_candidate in execution_candidates
+                # The `execution_candidate.container_execution` attribute access accesses the DB.
+                # TODO: Move the time filtering to the DB side.
+                # TODO: Filter by `ended_at`, not `created_at`.
+                # Note: Need `.astimezone` to avoid `TypeError: can't compare offset-naive and offset-aware datetimes`
+                if execution_candidate.container_execution.created_at.astimezone(
+                    datetime.timezone.utc
+                )
+                > data_purge_threshold_time
+            ]
+
         if non_purged_candidates:
             # Re-using the oldest candidate
             old_execution = non_purged_candidates[0]
