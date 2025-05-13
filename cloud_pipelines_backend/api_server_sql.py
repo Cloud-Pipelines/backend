@@ -323,6 +323,7 @@ class GetContainerExecutionStateResponse:
 class GetContainerExecutionLogResponse:
     log_text: str | None = None
     system_error_exception_full: str | None = None
+    orchestration_error_message: str | None = None
 
 
 class ExecutionNodesApiService_Sql:
@@ -535,6 +536,13 @@ class ExecutionNodesApiService_Sql:
         system_error_exception_full = execution_extra_data.get(
             bts.EXECUTION_NODE_EXTRA_DATA_SYSTEM_ERROR_EXCEPTION_FULL_KEY
         )
+        orchestration_error_message = execution_extra_data.get(
+            bts.EXECUTION_NODE_EXTRA_DATA_ORCHESTRATION_ERROR_MESSAGE_KEY
+        )
+        # Temporarily putting the orchestration error into the system error field for compatibility.
+        system_error_exception_full = (
+            system_error_exception_full or orchestration_error_message
+        )
         if not container_execution:
             if (
                 execution.container_execution_status
@@ -542,6 +550,7 @@ class ExecutionNodesApiService_Sql:
             ):
                 return GetContainerExecutionLogResponse(
                     system_error_exception_full=system_error_exception_full,
+                    orchestration_error_message=orchestration_error_message,
                 )
             raise RuntimeError(
                 f"Execution with {id=} does not have container execution information."
@@ -597,6 +606,7 @@ class ExecutionNodesApiService_Sql:
         return GetContainerExecutionLogResponse(
             log_text=log_text,
             system_error_exception_full=system_error_exception_full,
+            orchestration_error_message=orchestration_error_message,
         )
 
     def stream_container_execution_log(
