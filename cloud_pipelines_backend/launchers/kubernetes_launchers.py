@@ -562,6 +562,14 @@ class LaunchedKubernetesContainer(
             return None
         return terminated_state.finished_at
 
+    @property
+    def launcher_error_message(self) -> str | None:
+        main_container_terminated_state = self._get_main_container_terminated_state()
+        if main_container_terminated_state is None:
+            return None
+        launcher_error_message = f"Kubernetes error. Reason: {main_container_terminated_state.reason}, message: {main_container_terminated_state.message}"
+        return launcher_error_message
+
     def to_dict(self) -> dict[str, Any]:
         pod_dict = _kubernetes_serialize(self._debug_pod)
         # Removing trash

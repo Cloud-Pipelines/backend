@@ -104,6 +104,10 @@ class LaunchedContainer(abc.ABC, typing.Generic[_TLauncher]):
     def ended_at(self) -> datetime.datetime | None:
         raise NotImplementedError()
 
+    @property
+    def launcher_error_message(self) -> str | None:
+        raise NotImplementedError()
+
     def upload_logs(self):
         raise NotImplementedError()
 

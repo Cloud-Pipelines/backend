@@ -665,6 +665,15 @@ class OrchestratorService_Sql:
             container_execution.exit_code = reloaded_launched_container.exit_code
             container_execution.started_at = reloaded_launched_container.started_at
             container_execution.ended_at = reloaded_launched_container.ended_at
+            launcher_error = reloaded_launched_container.launcher_error_message
+            if launcher_error:
+                orchestration_error_message = f"Launcher error: {launcher_error}"
+                _record_orchestration_error_message(
+                    container_execution=container_execution,
+                    execution_nodes=execution_nodes,
+                    message=orchestration_error_message,
+                )
+
             _retry(
                 lambda: reloaded_launched_container.upload_log(launcher=self._launcher)
             )
