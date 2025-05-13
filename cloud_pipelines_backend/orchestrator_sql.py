@@ -546,6 +546,10 @@ class OrchestratorService_Sql:
                     bts.ContainerExecutionStatus.RUNNING
                 )
         elif new_status == launcher_interfaces.ContainerStatus.SUCCEEDED:
+            container_execution.status = bts.ContainerExecutionStatus.SUCCEEDED
+            container_execution.exit_code = reloaded_launched_container.exit_code
+            container_execution.started_at = reloaded_launched_container.started_at
+            container_execution.ended_at = reloaded_launched_container.ended_at
             _retry(
                 lambda: reloaded_launched_container.upload_log(launcher=self._launcher)
             )
@@ -571,63 +575,91 @@ class OrchestratorService_Sql:
                 output_name: output_artifact_info_dict["uri"]
                 for output_name, output_artifact_info_dict in container_execution.output_artifact_data_map.items()
             }
-            output_artifact_data_info_map = {
-                output_name: _retry(
-                    lambda: self._storage_provider.make_uri(uri).get_reader().get_info()
-                )
-                for output_name, uri in output_artifact_uris.items()
-            }
-            new_output_artifact_data_map = {
-                output_name: bts.ArtifactData(
-                    total_size=data_info.total_size,
-                    is_dir=data_info.is_dir,
-                    hash="md5=" + data_info.hashes["md5"],
-                    uri=output_artifact_uris[output_name],
-                    # Preloading artifact value is it's small enough (e.g. <=255 bytes)
-                    value=_retry(
-                        lambda: _maybe_preload_value(
-                            uri_reader=self._storage_provider.make_uri(
-                                output_artifact_uris[output_name]
-                            ).get_reader(),
-                            data_info=data_info,
-                        )
-                    ),
-                    created_at=current_time,
-                )
-                for output_name, data_info in output_artifact_data_info_map.items()
-            }
 
-            session.add_all(new_output_artifact_data_map.values())
-            container_execution.status = bts.ContainerExecutionStatus.SUCCEEDED
-            container_execution.exit_code = reloaded_launched_container.exit_code
-            container_execution.started_at = reloaded_launched_container.started_at
-            container_execution.ended_at = reloaded_launched_container.ended_at
-            for execution_node in execution_nodes:
-                execution_node.container_execution_status = (
-                    bts.ContainerExecutionStatus.SUCCEEDED
+            # We need to first check that the output data exists. Otherwise `uri_reader.get_info()`` throws `IndexError`
+            # in cloud_pipelines/orchestration/storage_providers/interfaces.py", line 172, in _make_data_info_for_dir
+            missing_output_names = [
+                output_name
+                for output_name, uri in output_artifact_uris.items()
+                if not _retry(
+                    lambda: self._storage_provider.make_uri(uri).get_reader().exists()
                 )
-                # TODO: Optimize
-                for output_name, artifact_node in session.execute(
-                    sql.select(bts.OutputArtifactLink.output_name, bts.ArtifactNode)
-                    .join(bts.OutputArtifactLink.artifact)
-                    .where(bts.OutputArtifactLink.execution_id == execution_node.id)
-                ).tuples():
-                    artifact_node.artifact_data = new_output_artifact_data_map[
-                        output_name
-                    ]
-                    artifact_node.had_data_in_past = True
-                # Waking up all direct downstream executions.
-                # Many of them will get processed and go back to WAITING_FOR_UPSTREAM state.
-                for downstream_execution in _get_direct_downstream_executions(
-                    session=session, execution=execution_node
-                ):
-                    if (
-                        downstream_execution.container_execution_status
-                        == bts.ContainerExecutionStatus.WAITING_FOR_UPSTREAM
+            ]
+
+            if missing_output_names:
+                # Marking the container execution as FAILED (even though the program itself has completed successfully)
+                container_execution.status = bts.ContainerExecutionStatus.FAILED
+                orchestration_error_message = f"Container execution {container_execution.id} is marked as FAILED due to missing outputs: {missing_output_names}."
+                _logger.error(orchestration_error_message)
+                _record_orchestration_error_message(
+                    container_execution=container_execution,
+                    execution_nodes=execution_nodes,
+                    message=orchestration_error_message,
+                )
+                # Skip downstream executions
+                for execution_node in execution_nodes:
+                    execution_node.container_execution_status = (
+                        bts.ContainerExecutionStatus.FAILED
+                    )
+                    _mark_all_downstream_executions_as_skipped(
+                        session=session, execution=execution_node
+                    )
+            else:
+                output_artifact_data_info_map = {
+                    output_name: _retry(
+                        lambda: self._storage_provider.make_uri(uri)
+                        .get_reader()
+                        .get_info()
+                    )
+                    for output_name, uri in output_artifact_uris.items()
+                }
+                new_output_artifact_data_map = {
+                    output_name: bts.ArtifactData(
+                        total_size=data_info.total_size,
+                        is_dir=data_info.is_dir,
+                        hash="md5=" + data_info.hashes["md5"],
+                        uri=output_artifact_uris[output_name],
+                        # Preloading artifact value is it's small enough (e.g. <=255 bytes)
+                        value=_retry(
+                            lambda: _maybe_preload_value(
+                                uri_reader=self._storage_provider.make_uri(
+                                    output_artifact_uris[output_name]
+                                ).get_reader(),
+                                data_info=data_info,
+                            )
+                        ),
+                        created_at=current_time,
+                    )
+                    for output_name, data_info in output_artifact_data_info_map.items()
+                }
+
+                session.add_all(new_output_artifact_data_map.values())
+                for execution_node in execution_nodes:
+                    execution_node.container_execution_status = (
+                        bts.ContainerExecutionStatus.SUCCEEDED
+                    )
+                    # TODO: Optimize
+                    for output_name, artifact_node in session.execute(
+                        sql.select(bts.OutputArtifactLink.output_name, bts.ArtifactNode)
+                        .join(bts.OutputArtifactLink.artifact)
+                        .where(bts.OutputArtifactLink.execution_id == execution_node.id)
+                    ).tuples():
+                        artifact_node.artifact_data = new_output_artifact_data_map[
+                            output_name
+                        ]
+                        artifact_node.had_data_in_past = True
+                    # Waking up all direct downstream executions.
+                    # Many of them will get processed and go back to WAITING_FOR_UPSTREAM state.
+                    for downstream_execution in _get_direct_downstream_executions(
+                        session=session, execution=execution_node
                     ):
-                        downstream_execution.container_execution_status = (
-                            bts.ContainerExecutionStatus.QUEUED
-                        )
+                        if (
+                            downstream_execution.container_execution_status
+                            == bts.ContainerExecutionStatus.WAITING_FOR_UPSTREAM
+                        ):
+                            downstream_execution.container_execution_status = (
+                                bts.ContainerExecutionStatus.QUEUED
+                            )
         elif new_status == launcher_interfaces.ContainerStatus.FAILED:
             container_execution.status = bts.ContainerExecutionStatus.FAILED
             container_execution.exit_code = reloaded_launched_container.exit_code
@@ -782,3 +814,22 @@ def record_system_error_exception(execution: bts.ExecutionNode, exception: Excep
     execution.extra_data[
         bts.EXECUTION_NODE_EXTRA_DATA_SYSTEM_ERROR_EXCEPTION_FULL_KEY
     ] = traceback.format_exc()
+
+
+def _record_orchestration_error_message(
+    container_execution: bts.ContainerExecution,
+    execution_nodes: list[bts.ExecutionNode],
+    message: str,
+):
+    if container_execution.extra_data is None:
+        container_execution.extra_data = {}
+    container_execution.extra_data[
+        bts.CONTAINER_EXECUTION_EXTRA_DATA_ORCHESTRATION_ERROR_MESSAGE_KEY
+    ] = message
+
+    for execution_node in execution_nodes:
+        if execution_node.extra_data is None:
+            execution_node.extra_data = {}
+        execution_node.extra_data[
+            bts.EXECUTION_NODE_EXTRA_DATA_ORCHESTRATION_ERROR_MESSAGE_KEY
+        ] = message

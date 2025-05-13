@@ -452,6 +452,9 @@ EXECUTION_NODE_EXTRA_DATA_SYSTEM_ERROR_EXCEPTION_FULL_KEY = (
 EXECUTION_NODE_EXTRA_DATA_ORCHESTRATION_ERROR_MESSAGE_KEY = (
     "orchestration_error_message"
 )
+CONTAINER_EXECUTION_EXTRA_DATA_ORCHESTRATION_ERROR_MESSAGE_KEY = (
+    "orchestration_error_message"
+)
 
 
 # Not needed. We can use the ExecutionToAncestorExecutionLink.ancestor_execution_id == PipelineRun.root_execution_id
