@@ -567,6 +567,12 @@ class LaunchedKubernetesContainer(
         main_container_terminated_state = self._get_main_container_terminated_state()
         if main_container_terminated_state is None:
             return None
+        if (
+            main_container_terminated_state.message is None
+            and main_container_terminated_state.reason == "Error"
+        ):
+            # Do not confuse users with message-less error messages
+            return None
         launcher_error_message = f"Kubernetes error. Reason: {main_container_terminated_state.reason}, message: {main_container_terminated_state.message}"
         return launcher_error_message
 
