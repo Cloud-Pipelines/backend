@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import datetime
+import json
 import logging
 import os
 import pathlib
@@ -38,11 +39,12 @@ POD_PATCH_ANNOTATION_KEY = "cloud-pipelines.net/launchers/kubernetes/pod_patch"
 MAIN_CONTAINER_PATCH_ANNOTATION_KEY = (
     "cloud-pipelines.net/launchers/kubernetes/main_container_patch"
 )
-RESOURCES_CPU_ANNOTATION_KEY = (
-    "cloud-pipelines.net/launchers/generic/resources.cpu"
-)
+RESOURCES_CPU_ANNOTATION_KEY = "cloud-pipelines.net/launchers/generic/resources.cpu"
 RESOURCES_MEMORY_ANNOTATION_KEY = (
     "cloud-pipelines.net/launchers/generic/resources.memory"
+)
+RESOURCES_ACCELERATORS_ANNOTATION_KEY = (
+    "cloud-pipelines.net/launchers/generic/resources.accelerators"
 )
 
 
@@ -326,7 +328,14 @@ class _KubernetesContainerLauncher(
 
         cpu_resource_request = annotations.get(RESOURCES_CPU_ANNOTATION_KEY)
         memory_resource_request = annotations.get(RESOURCES_MEMORY_ANNOTATION_KEY)
-        if memory_resource_request or cpu_resource_request:
+        accelerators_resource_request = annotations.get(
+            RESOURCES_ACCELERATORS_ANNOTATION_KEY
+        )
+        if (
+            cpu_resource_request
+            or memory_resource_request
+            or accelerators_resource_request
+        ):
             resources: k8s_client_lib.V1ResourceRequirements = (
                 main_container_spec.resources or k8s_client_lib.V1ResourceRequirements()
             )
@@ -338,6 +347,11 @@ class _KubernetesContainerLauncher(
             if memory_resource_request:
                 resources.requests["memory"] = memory_resource_request
                 resources.limits["memory"] = memory_resource_request
+            if accelerators_resource_request:
+                accelerators_dict = json.loads(accelerators_resource_request)
+                for resource_name, quantity in (accelerators_dict or {}).items():
+                    resources.requests[resource_name] = quantity
+                    resources.limits[resource_name] = quantity
 
         pod_spec = k8s_client_lib.V1PodSpec(
             init_containers=[],
