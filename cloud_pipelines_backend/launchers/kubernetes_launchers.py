@@ -38,6 +38,9 @@ POD_PATCH_ANNOTATION_KEY = "cloud-pipelines.net/launchers/kubernetes/pod_patch"
 MAIN_CONTAINER_PATCH_ANNOTATION_KEY = (
     "cloud-pipelines.net/launchers/kubernetes/main_container_patch"
 )
+RESOURCES_CPU_ANNOTATION_KEY = (
+    "cloud-pipelines.net/launchers/generic/resources.cpu"
+)
 RESOURCES_MEMORY_ANNOTATION_KEY = (
     "cloud-pipelines.net/launchers/generic/resources.memory"
 )
@@ -321,16 +324,20 @@ class _KubernetesContainerLauncher(
                 obj_dict=main_container_spec_dict, cls=k8s_client_lib.V1Container
             )
 
+        cpu_resource_request = annotations.get(RESOURCES_CPU_ANNOTATION_KEY)
         memory_resource_request = annotations.get(RESOURCES_MEMORY_ANNOTATION_KEY)
-        if memory_resource_request:
+        if memory_resource_request or cpu_resource_request:
             resources: k8s_client_lib.V1ResourceRequirements = (
                 main_container_spec.resources or k8s_client_lib.V1ResourceRequirements()
             )
             main_container_spec.resources = resources
             resources.requests = resources.requests or {}
             resources.limits = resources.limits or {}
-            resources.requests["memory"] = memory_resource_request
-            resources.limits["memory"] = memory_resource_request
+            if cpu_resource_request:
+                resources.requests["cpu"] = cpu_resource_request
+            if memory_resource_request:
+                resources.requests["memory"] = memory_resource_request
+                resources.limits["memory"] = memory_resource_request
 
         pod_spec = k8s_client_lib.V1PodSpec(
             init_containers=[],
