@@ -249,6 +249,12 @@ def setup_routes(
             execution_node = session.get(backend_types_sql.ExecutionNode, id)
             execution_node.container_execution_status = status
 
+    @router.get("/api/admin/sql_engine_connection_pool_status")
+    async def get_sql_engine_connection_pool_status(
+        session: typing.Annotated[orm.Session, fastapi.Depends(get_session)],
+    ) -> str:
+        return session.get_bind().pool.status()
+
     # # Needs to be called after all routes have been added to the router
     # app.include_router(router)
 
