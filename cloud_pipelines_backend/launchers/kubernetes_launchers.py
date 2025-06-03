@@ -316,7 +316,11 @@ class _KubernetesContainerLauncher(
         annotations = annotations or {}
 
         # Applying the main container patch
-        main_container_patch = annotations.get(MAIN_CONTAINER_PATCH_ANNOTATION_KEY)
+        main_container_patch: str | dict | None = annotations.get(
+            MAIN_CONTAINER_PATCH_ANNOTATION_KEY
+        )
+        if isinstance(main_container_patch, str):
+            main_container_patch = typing.cast(dict, json.loads(main_container_patch))
         if main_container_patch:
             # Produces proper camelCase keys
             main_container_spec_dict = _kubernetes_serialize(main_container_spec)
@@ -375,7 +379,9 @@ class _KubernetesContainerLauncher(
         )
 
         # Applying the pod patch
-        pod_patch = annotations.get(POD_PATCH_ANNOTATION_KEY)
+        pod_patch: str | dict | None = annotations.get(POD_PATCH_ANNOTATION_KEY)
+        if isinstance(pod_patch, str):
+            pod_patch = typing.cast(dict, json.loads(pod_patch))
         if pod_patch:
             # Produces proper camelCase keys
             pod_dict: dict = _kubernetes_serialize(pod)
