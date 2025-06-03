@@ -124,6 +124,12 @@ def _create_volume_and_volume_mount_google_cloud_storage(
     )
 
 
+class PodPostProcessor(typing.Protocol):
+    def __call__(
+        self, *, pod: k8s_client_lib.V1Pod, annotations: dict[str, str] | None = None
+    ) -> k8s_client_lib.V1Pod: ...
+
+
 class _KubernetesContainerLauncher(
     interfaces.ContainerTaskLauncher["LaunchedKubernetesContainer"]
 ):
@@ -139,6 +145,7 @@ class _KubernetesContainerLauncher(
         pod_name_prefix: str = "task-pod-",
         pod_labels: dict[str, str] | None = None,
         pod_annotations: dict[str, str] | None = None,
+        pod_postprocessor: PodPostProcessor | None = None,
         _storage_provider: storage_provider_interfaces.StorageProvider,
         _create_volume_and_volume_mount: typing.Callable[
             [str, str, str, bool],
@@ -156,6 +163,7 @@ class _KubernetesContainerLauncher(
             _CLOUD_PIPELINES_KUBERNETES_ANNOTATION_KEY: "true",
             _KUBERNETES_LAUNCHER_ANNOTATION_KEY: "true",
         } | (pod_annotations or {})
+        self._pod_postprocessor = pod_postprocessor
         self._create_volume_and_volume_mount = _create_volume_and_volume_mount
 
         try:
@@ -389,6 +397,9 @@ class _KubernetesContainerLauncher(
             # Properly parses camelCase keys
             pod = _kubernetes_deserialize(obj_dict=pod_dict, cls=k8s_client_lib.V1Pod)
 
+        if self._pod_postprocessor:
+            pod = self._pod_postprocessor(pod=pod, annotations=annotations)
+
         core_api_client = k8s_client_lib.CoreV1Api(api_client=self._api_client)
         created_pod: k8s_client_lib.V1Pod = core_api_client.create_namespaced_pod(
             namespace=self._namespace,
@@ -453,6 +464,7 @@ class KubernetesWithHostPathContainerLauncher(_KubernetesContainerLauncher):
         pod_name_prefix: str = "task-pod-",
         pod_labels: dict[str, str] | None = None,
         pod_annotations: dict[str, str] | None = None,
+        pod_postprocessor: PodPostProcessor | None = None,
     ):
         super().__init__(
             namespace=namespace,
@@ -463,6 +475,7 @@ class KubernetesWithHostPathContainerLauncher(_KubernetesContainerLauncher):
             _storage_provider=local_storage.LocalStorageProvider(),
             pod_labels=pod_labels,
             pod_annotations=pod_annotations,
+            pod_postprocessor=pod_postprocessor,
             _create_volume_and_volume_mount=_create_volume_and_volume_mount_host_path,
         )
 
@@ -481,6 +494,7 @@ class KubernetesWithGcsFuseContainerLauncher(_KubernetesContainerLauncher):
         gcs_client: "storage.Client | None" = None,
         pod_labels: dict[str, str] | None = None,
         pod_annotations: dict[str, str] | None = None,
+        pod_postprocessor: PodPostProcessor | None = None,
     ):
         super().__init__(
             namespace=namespace,
@@ -493,6 +507,7 @@ class KubernetesWithGcsFuseContainerLauncher(_KubernetesContainerLauncher):
             ),
             pod_labels=pod_labels,
             pod_annotations={"gke-gcsfuse/volumes": "true"} | (pod_annotations or {}),
+            pod_postprocessor=pod_postprocessor,
             _create_volume_and_volume_mount=_create_volume_and_volume_mount_google_cloud_storage,
         )
 
