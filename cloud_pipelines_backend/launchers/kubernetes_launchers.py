@@ -63,7 +63,7 @@ def _create_volume_and_volume_mount_host_path(
     artifact_dir_uri, _, artifact_file = artifact_uri.rpartition("/")
     if container_file != artifact_file:
         raise interfaces.LauncherError(
-            "Container file name is different from artifact file name. {container_path=}, {artifact_uri=}"
+            f"Container file name is different from artifact file name. {container_path=}, {artifact_uri=}"
         )
     # artifact_dir_uri = pathlib.PurePosixPath(artifact_uri).parent.as_posix()
     host_dir = artifact_dir_uri
