@@ -340,14 +340,7 @@ class _KubernetesContainerLauncher(
 
         cpu_resource_request = annotations.get(RESOURCES_CPU_ANNOTATION_KEY)
         memory_resource_request = annotations.get(RESOURCES_MEMORY_ANNOTATION_KEY)
-        accelerators_resource_request = annotations.get(
-            RESOURCES_ACCELERATORS_ANNOTATION_KEY
-        )
-        if (
-            cpu_resource_request
-            or memory_resource_request
-            or accelerators_resource_request
-        ):
+        if cpu_resource_request or memory_resource_request:
             resources: k8s_client_lib.V1ResourceRequirements = (
                 main_container_spec.resources or k8s_client_lib.V1ResourceRequirements()
             )
@@ -359,11 +352,6 @@ class _KubernetesContainerLauncher(
             if memory_resource_request:
                 resources.requests["memory"] = memory_resource_request
                 resources.limits["memory"] = memory_resource_request
-            if accelerators_resource_request:
-                accelerators_dict = json.loads(accelerators_resource_request)
-                for resource_name, quantity in (accelerators_dict or {}).items():
-                    resources.requests[resource_name] = quantity
-                    resources.limits[resource_name] = quantity
 
         pod_spec = k8s_client_lib.V1PodSpec(
             init_containers=[],
@@ -456,6 +444,59 @@ class _KubernetesContainerLauncher(
         return launched_container
 
 
+def _google_kubernetes_engine_accelerator_pod_postprocessor(
+    *, pod: k8s_client_lib.V1Pod, annotations: dict[str, str] | None = None
+) -> k8s_client_lib.V1Pod:
+    if not annotations:
+        return pod
+
+    accelerators_resource_request = annotations.get(
+        RESOURCES_ACCELERATORS_ANNOTATION_KEY
+    )
+    if not accelerators_resource_request:
+        return pod
+    pod = copy.deepcopy(pod)
+    pod_spec: k8s_client_lib.V1PodSpec = pod.spec
+    pod_spec.node_selector = pod_spec.node_selector or {}
+
+    accelerators_dict = json.loads(accelerators_resource_request)
+    nvidia_gpu_count = 0
+    if len(accelerators_dict) > 1:
+        raise interfaces.LauncherError(
+            f"Multiple accelerator types were specified: {accelerators_dict=}"
+        )
+    for resource_name, quantity in (accelerators_dict or {}).items():
+        pod_spec.node_selector["cloud.google.com/gke-accelerator"] = resource_name
+        # TODO: Support spot instances: `cloud.google.com/gke-spot: "true"``
+        if resource_name.startswith("nvidia"):
+            nvidia_gpu_count += int(quantity)
+
+    if nvidia_gpu_count:
+        # TODO: Get main container by name
+        main_container_spec: k8s_client_lib.V1Container = pod_spec.containers[0]
+        resources: k8s_client_lib.V1ResourceRequirements = (
+            main_container_spec.resources or k8s_client_lib.V1ResourceRequirements()
+        )
+        main_container_spec.resources = resources
+        resources.limits = resources.limits or {}
+        resources.limits["nvidia.com/gpu"] = nvidia_gpu_count
+
+    return pod
+
+
+def _create_pod_postprocessor_stack(
+    pod_postprocessors: list[PodPostProcessor],
+) -> PodPostProcessor:
+    def _post_processor(
+        *, pod: k8s_client_lib.V1Pod, annotations: dict[str, str] | None = None
+    ) -> k8s_client_lib.V1Pod:
+        for pod_postprocessor in pod_postprocessors:
+            pod = pod_postprocessor(pod=pod, annotations=annotations)
+        return pod
+
+    return _post_processor
+
+
 class KubernetesWithHostPathContainerLauncher(_KubernetesContainerLauncher):
     """Launcher that uses single-node Kubernetes (uses hostPath for data passing)"""
 
@@ -501,6 +542,10 @@ class KubernetesWithGcsFuseContainerLauncher(_KubernetesContainerLauncher):
         pod_annotations: dict[str, str] | None = None,
         pod_postprocessor: PodPostProcessor | None = None,
     ):
+        pod_postprocessors = [_google_kubernetes_engine_accelerator_pod_postprocessor]
+        if pod_postprocessor:
+            pod_postprocessors.append(pod_postprocessor)
+        final_pod_postporocessor = _create_pod_postprocessor_stack(pod_postprocessors)
         super().__init__(
             namespace=namespace,
             service_account_name=service_account_name,
@@ -512,7 +557,7 @@ class KubernetesWithGcsFuseContainerLauncher(_KubernetesContainerLauncher):
             ),
             pod_labels=pod_labels,
             pod_annotations={"gke-gcsfuse/volumes": "true"} | (pod_annotations or {}),
-            pod_postprocessor=pod_postprocessor,
+            pod_postprocessor=final_pod_postporocessor,
             _create_volume_and_volume_mount=_create_volume_and_volume_mount_google_cloud_storage,
         )
 
