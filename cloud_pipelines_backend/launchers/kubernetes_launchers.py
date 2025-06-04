@@ -444,6 +444,12 @@ class _KubernetesContainerLauncher(
         return launched_container
 
 
+# https://cloud.google.com/kubernetes-engine/docs/concepts/spot-vms
+KUBERNETES_GOOGLE_USE_SPOT_VMS_ANNOTATION_KEY = (
+    "cloud-pipelines.net/launchers/kubernetes/google/use_spot_vms"
+)
+
+
 def _google_kubernetes_engine_accelerator_pod_postprocessor(
     *, pod: k8s_client_lib.V1Pod, annotations: dict[str, str] | None = None
 ) -> k8s_client_lib.V1Pod:
@@ -453,33 +459,35 @@ def _google_kubernetes_engine_accelerator_pod_postprocessor(
     accelerators_resource_request = annotations.get(
         RESOURCES_ACCELERATORS_ANNOTATION_KEY
     )
-    if not accelerators_resource_request:
-        return pod
+    use_spot_vms = annotations.get(KUBERNETES_GOOGLE_USE_SPOT_VMS_ANNOTATION_KEY, False)
     pod = copy.deepcopy(pod)
     pod_spec: k8s_client_lib.V1PodSpec = pod.spec
     pod_spec.node_selector = pod_spec.node_selector or {}
+    # TODO: Get main container by name
+    main_container_spec: k8s_client_lib.V1Container = pod_spec.containers[0]
+    resources: k8s_client_lib.V1ResourceRequirements = (
+        main_container_spec.resources or k8s_client_lib.V1ResourceRequirements()
+    )
+    main_container_spec.resources = resources
+    resources.limits = resources.limits or {}
 
-    accelerators_dict = json.loads(accelerators_resource_request)
-    nvidia_gpu_count = 0
-    if len(accelerators_dict) > 1:
-        raise interfaces.LauncherError(
-            f"Multiple accelerator types were specified: {accelerators_dict=}"
-        )
-    for resource_name, quantity in (accelerators_dict or {}).items():
-        pod_spec.node_selector["cloud.google.com/gke-accelerator"] = resource_name
-        # TODO: Support spot instances: `cloud.google.com/gke-spot: "true"``
-        if resource_name.startswith("nvidia"):
-            nvidia_gpu_count += int(quantity)
+    if accelerators_resource_request:
+        accelerators_dict = json.loads(accelerators_resource_request)
+        nvidia_gpu_count = 0
+        if len(accelerators_dict) > 1:
+            raise interfaces.LauncherError(
+                f"Multiple accelerator types were specified: {accelerators_dict=}"
+            )
+        for resource_name, quantity in (accelerators_dict or {}).items():
+            pod_spec.node_selector["cloud.google.com/gke-accelerator"] = resource_name
+            if resource_name.startswith("nvidia"):
+                nvidia_gpu_count += int(quantity)
 
-    if nvidia_gpu_count:
-        # TODO: Get main container by name
-        main_container_spec: k8s_client_lib.V1Container = pod_spec.containers[0]
-        resources: k8s_client_lib.V1ResourceRequirements = (
-            main_container_spec.resources or k8s_client_lib.V1ResourceRequirements()
-        )
-        main_container_spec.resources = resources
-        resources.limits = resources.limits or {}
-        resources.limits["nvidia.com/gpu"] = nvidia_gpu_count
+        if nvidia_gpu_count:
+            resources.limits["nvidia.com/gpu"] = nvidia_gpu_count
+
+    if use_spot_vms:
+        pod_spec.node_selector["cloud.google.com/gke-spot"] = use_spot_vms
 
     return pod
 
