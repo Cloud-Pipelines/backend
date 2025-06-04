@@ -401,11 +401,16 @@ class _KubernetesContainerLauncher(
             pod = self._pod_postprocessor(pod=pod, annotations=annotations)
 
         core_api_client = k8s_client_lib.CoreV1Api(api_client=self._api_client)
-        created_pod: k8s_client_lib.V1Pod = core_api_client.create_namespaced_pod(
-            namespace=self._namespace,
-            body=pod,
-            _request_timeout=self._request_timeout,
-        )
+        try:
+            created_pod: k8s_client_lib.V1Pod = core_api_client.create_namespaced_pod(
+                namespace=self._namespace,
+                body=pod,
+                _request_timeout=self._request_timeout,
+            )
+        except Exception as ex:
+            raise interfaces.LauncherError(
+                f"Failed to create pod: {_kubernetes_serialize(pod)}"
+            ) from ex
 
         pod_name: str = created_pod.metadata.name
         pod_namespace: str = created_pod.metadata.namespace
