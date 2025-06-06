@@ -27,6 +27,8 @@ def setup_routes(
     container_launcher_for_log_streaming: (
         "launcher_interfaces.ContainerTaskLauncher | None"
     ) = None,
+    db_connection_pool_size: int | None = None,
+    db_connection_pool_max_overflow: int | None = None,
 ):
     # We request `app: fastapi.FastAPI` instead of just returning the router
     # because we want to add exception handler which is only suported for `FastAPI`.
@@ -54,6 +56,8 @@ def setup_routes(
         # https://docs.sqlalchemy.org/en/20/faq/connections.html#mysql-server-has-gone-away
         pool_recycle=3600,
         pool_pre_ping=True,
+        pool_size=db_connection_pool_size,
+        max_overflow=db_connection_pool_max_overflow,
         # FastApi claims it's needed and safe: https://fastapi.tiangolo.com/tutorial/sql-databases/#create-an-engine
         connect_args=(
             {"check_same_thread": False} if database_uri.startswith("sqlite://") else {}
