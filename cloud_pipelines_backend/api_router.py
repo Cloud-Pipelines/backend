@@ -68,16 +68,9 @@ def setup_routes(
         ),
     )
 
-    session_factory = orm.sessionmaker(
-        autocommit=False, autoflush=False, bind=db_engine
-    )
-
     def get_session():
-        session = session_factory()
-        try:
+        with orm.Session(autocommit=False, autoflush=False, bind=db_engine) as session:
             yield session
-        finally:
-            session.close()
 
     def create_db_and_tables():
         backend_types_sql._TableBase.metadata.create_all(db_engine)
