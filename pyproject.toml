@@ -1,0 +1,12 @@
+[project]
+name = "cloud-pipelines-backend"
+version = "0.1.0"
+description = "Backend for Cloud Pipelines"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "cloud-pipelines>=0.23.2.4",
+    "fastapi[standard]>=0.115.12",
+    "kubernetes>=33.1.0",
+    "sqlalchemy>=2.0.41",
+]
