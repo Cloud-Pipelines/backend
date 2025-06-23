@@ -26,6 +26,11 @@ _logger = logging.getLogger(__name__)
 _T = typing.TypeVar("_T")
 
 
+PIPELINE_RUN_CREATED_BY_ANNOTATION_KEY = (
+    "cloud-pipelines.net/orchestration/pipeline_run.created_by"
+)
+
+
 class OrchestratorError(RuntimeError):
     pass
 
@@ -409,6 +414,10 @@ class OrchestratorService_Sql:
         )
         _update_dict_recursive(
             full_annotations, copy.deepcopy(task_spec.annotations or {})
+        )
+
+        full_annotations[PIPELINE_RUN_CREATED_BY_ANNOTATION_KEY] = (
+            pipeline_run.created_by
         )
 
         try:
