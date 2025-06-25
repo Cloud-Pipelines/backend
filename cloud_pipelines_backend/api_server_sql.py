@@ -288,7 +288,7 @@ class GetExecutionInfoResponse:
     task_spec: structures.TaskSpec
     parent_execution_id: bts.IdType | None = None
     child_task_execution_ids: dict[str, bts.IdType]
-    # pipeline_run_id: str
+    pipeline_run_id: bts.IdType | None = None
     # ancestor_breadcrumbs: list[tuple[str, str]]
     input_artifacts: dict[str, "ArtifactNodeIdResponse"] | None = None
     output_artifacts: dict[str, "ArtifactNodeIdResponse"] | None = None
@@ -333,6 +333,22 @@ class ExecutionNodesApiService_Sql:
         if execution_node is None:
             raise ItemNotFoundError(f"Execution with {id=} does not exist.")
 
+        parent_pipeline_run_id = session.scalar(
+            sql.select(bts.PipelineRun.id)
+            .where(bts.PipelineRun.root_execution_id == id)
+        )
+
+        ancestor_pipeline_run_id = session.scalar(
+            sql.select(bts.PipelineRun.id)
+            .join(
+                bts.ExecutionToAncestorExecutionLink,
+                bts.ExecutionToAncestorExecutionLink.ancestor_execution_id
+                == bts.PipelineRun.root_execution_id,
+            )
+            .where(bts.ExecutionToAncestorExecutionLink.execution_id == id)
+        )
+        pipeline_run_id = parent_pipeline_run_id or ancestor_pipeline_run_id
+
         child_executions = execution_node.child_executions
         child_task_execution_ids = {
             child_execution.task_id_in_parent_execution
@@ -360,6 +376,7 @@ class ExecutionNodesApiService_Sql:
             id=execution_node.id,
             task_spec=structures.TaskSpec.from_json_dict(execution_node.task_spec),
             parent_execution_id=execution_node.parent_execution_id,
+            pipeline_run_id=pipeline_run_id,
             child_task_execution_ids=child_task_execution_ids,
             input_artifacts=input_artifacts,
             output_artifacts=output_artifacts,
