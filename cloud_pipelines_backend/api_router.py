@@ -213,6 +213,37 @@ def setup_routes(
         )
     )
 
+    def pipeline_run_cancel(
+        session: SessionDep, id: backend_types_sql.IdType, terminated_by: str
+    ):
+        skip_user_check = False
+        try:
+            if ensure_admin_user:
+                ensure_admin_user()
+            skip_user_check = True
+        except:
+            pass
+        pipeline_run_service.terminate(
+            session=session,
+            id=id,
+            terminated_by=terminated_by,
+            skip_user_check=skip_user_check,
+        )
+
+    if get_user_name:
+        # The `created_by` parameter value now comes from a Dependency (instead of request)
+        pipeline_run_cancel = add_parameter_annotation_metadata(
+            pipeline_run_cancel,
+            parameter_name="terminated_by",
+            annotation_metadata=fastapi.Depends(get_user_name),
+        )
+    router.post(
+        "/api/pipeline_runs/{id}/cancel",
+        tags=["pipelineRuns"],
+        dependencies=[fastapi.Depends(check_not_readonly)],
+        **default_config,
+    )(pipeline_run_cancel)
+
     @router.put(
         "/api/admin/set_read_only_model",
         tags=["admin"],

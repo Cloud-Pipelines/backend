@@ -110,6 +110,45 @@ class PipelineRunsApiService_Sql:
             raise ItemNotFoundError(f"Pipeline run {id} not found.")
         return PipelineRunResponse.from_db(pipeline_run)
 
+    def terminate(
+        self,
+        session: orm.Session,
+        id: bts.IdType,
+        terminated_by: str | None = None,
+        skip_user_check: bool = False,
+    ):
+        pipeline_run = session.get(bts.PipelineRun, id)
+        if not pipeline_run:
+            raise ItemNotFoundError(f"Pipeline run {id} not found.")
+        if not skip_user_check and (terminated_by != pipeline_run.created_by):
+            raise ApiServiceError(
+                f"The pipeline run {id} was started by {pipeline_run.created_by} and cannnot be terminated by {terminated_by}"
+            )
+        # Marking the pipeline run for termination
+        pipeline_run.extra_data = pipeline_run_extra_data = (
+            pipeline_run.extra_data or {}
+        )
+        pipeline_run_extra_data["desired_state"] = "TERMINATED"
+
+        # Marking all running executions belonging to the run for termination
+        running_execution_nodes = [
+            execution_node
+            for execution_node in pipeline_run.root_execution.descendants
+            if execution_node.container_execution_status
+            in (
+                bts.ContainerExecutionStatus.QUEUED,
+                bts.ContainerExecutionStatus.WAITING_FOR_UPSTREAM,
+                bts.ContainerExecutionStatus.PENDING,
+                bts.ContainerExecutionStatus.RUNNING,
+            )
+        ]
+        for execution_node in running_execution_nodes:
+            execution_node.extra_data = execution_extra_data = (
+                execution_node.extra_data or {}
+            )
+            execution_extra_data["desired_state"] = "TERMINATED"
+        session.commit()
+
     # Note: This method must be last to not shadow the "list" type
     def list(
         self,
