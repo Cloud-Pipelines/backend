@@ -130,6 +130,9 @@ class LaunchedContainer(abc.ABC, typing.Generic[_TLauncher]):
     def stream_log_lines(self, launcher: _TLauncher) -> typing.Iterator[str]:
         raise NotImplementedError()
 
+    def terminate(self, launcher: _TLauncher):
+        raise NotImplementedError()
+
 
 # @dataclasses.dataclass
 # class ContainerExecutionResult:

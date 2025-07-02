@@ -768,6 +768,15 @@ class LaunchedKubernetesContainer(
 
         return pprint.pformat(self.to_dict())
 
+    def terminate(self, launcher: _KubernetesContainerLauncher):
+        core_api_client = k8s_client_lib.CoreV1Api(api_client=launcher._api_client)
+        core_api_client.delete_namespaced_pod(
+            name=self._pod_name,
+            namespace=self._namespace,
+            grace_period_seconds=10,
+        )
+        _logger.info(f"Terminated pod {self._pod_name} in namespace {self._namespace}")
+
 
 def windows_path_to_docker_path(path: str) -> str:
     if os.name != "nt":

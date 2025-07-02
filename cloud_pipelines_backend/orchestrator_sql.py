@@ -337,6 +337,27 @@ class OrchestratorService_Sql:
                 f"Execution {execution} is not associated with a PipelineRun."
             )
 
+        # Handling cancellation.
+        # In case of cancellation, we do not create container execution and we skip all downstream executions.
+        should_terminate_execution = (execution.extra_data or {}).get(
+            "desired_state"
+        ) == "TERMINATED"
+        should_terminate_run = (pipeline_run.extra_data or {}).get(
+            "desired_state"
+        ) == "TERMINATED"
+        should_terminate = should_terminate_execution or should_terminate_run
+        if should_terminate:
+            _logger.info(
+                f"Cancelling execution {execution.id} and skipping all downstream executions."
+            )
+            execution.container_execution_status = (
+                bts.ContainerExecutionStatus.CANCELLED
+            )
+            _mark_all_downstream_executions_as_skipped(
+                session=session, execution=execution
+            )
+
+        # Creating new container execution
         container_execution_uuid = _generate_random_id()
 
         _ARTIFACT_PATH_LAST_PART = "data"
@@ -512,6 +533,62 @@ class OrchestratorService_Sql:
             raise OrchestratorError(
                 f"Unexpected running container status: {previous_status=}, {launched_container=}"
             )
+
+        # Handling cancellation
+        votes_to_terminate = []
+        votes_to_not_terminate = []
+        # TODO: Get the desired state from the pipeline runs, not execution nodes
+        execution_nodes = container_execution.execution_nodes
+        for execution_node in execution_nodes:
+            should_terminate = (execution_node.extra_data or {}).get(
+                "desired_state"
+            ) == "TERMINATED"
+            if should_terminate:
+                votes_to_terminate.append(execution_node)
+            else:
+                votes_to_not_terminate.append(execution_node)
+
+        if votes_to_terminate:
+            # Terminate the container execution only when all execution nodes pointing to it are asked to terminate.
+            if votes_to_not_terminate:
+                _logger.info(
+                    f"Not terminating container execution {container_execution.id=} since some other executions ({[execution_node.id for execution_node in votes_to_not_terminate]}) are still using it."
+                )
+            else:
+                _logger.info(
+                    f"Terminating container execution {container_execution.id}."
+                )
+                # We should preserve the logs before terminating/deleting the container
+                try:
+                    _retry(
+                        lambda: launched_container.upload_log(launcher=self._launcher)
+                    )
+                except:
+                    _logger.exception(
+                        f"Error uploading logs for {container_execution.id=} before termination."
+                    )
+                # Requesting container termination.
+                # Termination might not happen immediately (e.g. Kubernetes has grace period).
+                launched_container.terminate(launcher=self._launcher)
+                container_execution.ended_at = _get_current_time()
+                # We need to mark the execution as CANCELLED otherwise orchestrator will continue polling it.
+                container_execution.status = bts.ContainerExecutionStatus.CANCELLED
+
+            # Mark the execution nodes as cancelled only after the launched container is successfully terminated (if needed)
+            for execution_node in votes_to_terminate:
+                _logger.info(
+                    f"Cancelling execution {execution_node.id} ({container_execution.id=}) and skipping all downstream executions."
+                )
+                execution_node.container_execution_status = (
+                    bts.ContainerExecutionStatus.CANCELLED
+                )
+                _mark_all_downstream_executions_as_skipped(
+                    session=session, execution=execution_node
+                )
+            session.commit()
+            return
+
+        # Asking the launcher to refresh the container state.
         reloaded_launched_container: launcher_interfaces.LaunchedContainer = (
             self._launcher.get_refreshed_launched_container_from_dict(launcher_data)
         )
