@@ -283,6 +283,102 @@ def setup_routes(
     ) -> str:
         return session.get_bind().pool.status()
 
+    
+
+    @router.get("/quick-stats")
+    async def quick_stats(
+        session: typing.Annotated[orm.Session, fastapi.Depends(get_session)],
+    ):
+
+       import json
+       
+       result = api_server_sql.PipelineRunStats_sql.get_runs_per_day(session)
+       runs_per_day_data = [{"date": str(row.run_date), "count": row.record_count} for row in result]
+       result = api_server_sql.PipelineRunStats_sql.get_unique_users_per_day(session)
+       unique_users_per_day_data = [{"date": str(row.date), "count": row.unique_users} for row in result]
+
+       # Generate HTML with Chart.js
+       html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Quick Stats</title>
+            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        </head>
+        <body>
+            <div style="width: 800px; margin: 50px auto;">
+                <h1>Quick Statistics (last 30 days)</h1>
+                <div style="display: flex; gap: 20px;">
+                    <div style="flex: 1;">
+                        <h2>Pipeline Runs per Day</h2>
+                        <canvas id="runsPerDayChart"></canvas>
+                    </div>
+                    <div style="flex: 1;">
+                        <h2>Unique Users per Day</h2>
+                        <canvas id="uniqueUsersChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <script>
+                const options = {{
+                    plugins: {{
+                        legend: {{
+                            display: false
+                        }}
+                    }},
+                    scales: {{
+                        x: {{
+                            ticks: {{
+                                display: true,
+                                autoSkip: true
+                            }}
+                        }}
+                    }}
+                }};
+                const runs_per_day_data = {json.dumps(runs_per_day_data)};
+                const unique_users_per_day_data = {json.dumps(unique_users_per_day_data)};
+                const ctx = document.getElementById('runsPerDayChart').getContext('2d');
+                
+                new Chart(ctx, {{
+                    type: 'line',
+                    data: {{
+                        labels: runs_per_day_data.map(item => item.date),
+                        datasets: [{{
+                            label: 'Count',
+                            data: runs_per_day_data.map(item => item.count),
+                            backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1
+                        }}]
+                    }},
+                    options
+                }});
+
+                const uniqueUsersCtx = document.getElementById('uniqueUsersChart').getContext('2d');
+                new Chart(uniqueUsersCtx, {{
+                    type: 'line',
+                    data: {{
+                        labels: unique_users_per_day_data.map(item => item.date),
+                        datasets: [{{
+                            label: 'Unique Users',
+                            data: unique_users_per_day_data.map(item => item.count),
+                            backgroundColor: 'rgba(255, 99, 132, 0.6)',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 1
+                        }}]
+                    }},
+                    options
+                }});
+
+            </script>
+        </body>
+        </html>
+       """
+
+       return fastapi.responses.HTMLResponse(content=html_content)
+
+
     # # Needs to be called after all routes have been added to the router
     # app.include_router(router)
 
