@@ -1176,3 +1176,63 @@ def _sqlalchemy_object_to_dict(obj) -> dict:
 # # If input is required, it's treated as the default value.
 # class UnconnectedArtifactWithDefaultValue:
 #     default_value: str
+
+
+# ================
+
+class PipelineRunStats_sql:
+    @classmethod
+    def get_runs_per_day(cls, session: orm.Session) -> list[dict[str, Any]]:
+        runs_per_day_query = """
+        WITH RECURSIVE date_series AS (
+            SELECT DATE('now', '-29 days') as run_date
+            UNION ALL
+            SELECT DATE(run_date, '+1 day')
+                FROM date_series
+                WHERE run_date < DATE('now')
+            ),
+            actual_data AS (
+                SELECT 
+                    DATE(created_at) as run_date,
+                    COUNT(*) as record_count
+                FROM pipeline_run
+                WHERE created_at >= datetime('now', '-30 days')
+                GROUP BY DATE(created_at)
+            )
+            SELECT 
+                ds.run_date,
+                COALESCE(ad.record_count, 0) as record_count
+            FROM date_series ds
+            LEFT JOIN actual_data ad ON ds.run_date = ad.run_date
+            ORDER BY ds.run_date ASC;
+        """
+
+        return session.execute(sql.text(runs_per_day_query))
+
+    @classmethod
+    def get_unique_users_per_day(cls, session: orm.Session) -> list[dict[str, Any]]:
+        unique_users_per_day_query = """
+        WITH RECURSIVE date_range AS (
+                SELECT DATE('now', '-30 days') as date
+                UNION ALL
+                SELECT DATE(date, '+1 day')
+                FROM date_range
+                WHERE date < DATE('now')
+            ),
+            daily_users AS (
+                SELECT 
+                    DATE(created_at) as date,
+                    COUNT(DISTINCT created_by) as unique_users
+                FROM pipeline_run
+                WHERE created_at >= DATE('now', '-30 days')
+                GROUP BY DATE(created_at)
+            )
+            SELECT 
+                dr.date,
+                COALESCE(du.unique_users, 0) as unique_users
+            FROM date_range dr
+            LEFT JOIN daily_users du ON dr.date = du.date
+            ORDER BY dr.date ASC;
+        """    
+
+        return session.execute(sql.text(unique_users_per_day_query))
