@@ -1,7 +1,4 @@
 import contextlib
-import functools
-import os
-import traceback
 import typing
 
 import fastapi
@@ -13,10 +10,6 @@ from . import backend_types_sql
 
 if typing.TYPE_CHECKING:
     from .launchers import interfaces as launcher_interfaces
-
-
-DEFAULT_DATABASE_URI = "sqlite://"
-database_uri = os.environ.get("DATABASE_URI", DEFAULT_DATABASE_URI)
 
 
 def setup_routes(
@@ -31,7 +24,7 @@ def setup_routes(
     db_connection_pool_max_overflow: int | None = None,
 ):
     # We request `app: fastapi.FastAPI` instead of just returning the router
-    # because we want to add exception handler which is only suported for `FastAPI`.
+    # because we want to add exception handler which is only supported for `FastAPI`.
 
     @app.exception_handler(api_server_sql.ItemNotFoundError)
     def handle_not_found_error(
@@ -63,9 +56,7 @@ def setup_routes(
             {"check_same_thread": False} if database_uri.startswith("sqlite://") else {}
         ),
         # https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#using-a-memory-database-in-multiple-threads
-        poolclass=(
-            sqlalchemy.pool.StaticPool if database_uri == DEFAULT_DATABASE_URI else None
-        ),
+        poolclass=(sqlalchemy.pool.StaticPool if database_uri == "sqlite://" else None),
     )
 
     def get_session():
