@@ -3,7 +3,7 @@ import traceback
 
 import fastapi
 
-from . import api_router
+from cloud_pipelines_backend import api_router
 
 app = fastapi.FastAPI(
     title="Cloud Pipelines API",
