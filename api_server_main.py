@@ -21,7 +21,7 @@ def handle_error(request: fastapi.Request, exc: BaseException):
     )
 
 
-DEFAULT_DATABASE_URI = "sqlite://"
+DEFAULT_DATABASE_URI = "sqlite:///db.sqlite"
 database_uri = (
     os.environ.get("DATABASE_URI")
     or os.environ.get("DATABASE_URL")
