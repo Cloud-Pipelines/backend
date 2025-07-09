@@ -57,8 +57,10 @@ def setup_routes(
         create_engine_kwargs["pool_recycle"] = 3600
         create_engine_kwargs["pool_pre_ping"] = True
 
-        create_engine_kwargs["pool_size"] = db_connection_pool_size
-        create_engine_kwargs["max_overflow"] = db_connection_pool_max_overflow
+        if db_connection_pool_size:
+            create_engine_kwargs["pool_size"] = db_connection_pool_size
+        if db_connection_pool_size:
+            create_engine_kwargs["max_overflow"] = db_connection_pool_max_overflow
 
     db_engine = sqlalchemy.create_engine(
         url=database_uri,
