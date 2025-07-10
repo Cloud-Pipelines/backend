@@ -20,8 +20,7 @@ def setup_routes(
     container_launcher_for_log_streaming: (
         "launcher_interfaces.ContainerTaskLauncher | None"
     ) = None,
-    db_connection_pool_size: int | None = None,
-    db_connection_pool_max_overflow: int | None = None,
+    sqlalchemy_create_engine_kwargs: dict | None = None,
 ):
     # We request `app: fastapi.FastAPI` instead of just returning the router
     # because we want to add exception handler which is only supported for `FastAPI`.
@@ -57,10 +56,8 @@ def setup_routes(
         create_engine_kwargs["pool_recycle"] = 3600
         create_engine_kwargs["pool_pre_ping"] = True
 
-        if db_connection_pool_size:
-            create_engine_kwargs["pool_size"] = db_connection_pool_size
-        if db_connection_pool_size:
-            create_engine_kwargs["max_overflow"] = db_connection_pool_max_overflow
+    if sqlalchemy_create_engine_kwargs:
+        create_engine_kwargs.update(sqlalchemy_create_engine_kwargs)
 
     db_engine = sqlalchemy.create_engine(
         url=database_uri,
