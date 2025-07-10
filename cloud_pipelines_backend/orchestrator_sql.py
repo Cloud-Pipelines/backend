@@ -550,6 +550,7 @@ class OrchestratorService_Sql:
 
         if votes_to_terminate:
             # Terminate the container execution only when all execution nodes pointing to it are asked to terminate.
+            terminated = False
             if votes_to_not_terminate:
                 _logger.info(
                     f"Not terminating container execution {container_execution.id=} since some other executions ({[execution_node.id for execution_node in votes_to_not_terminate]}) are still using it."
@@ -573,6 +574,7 @@ class OrchestratorService_Sql:
                 container_execution.ended_at = _get_current_time()
                 # We need to mark the execution as CANCELLED otherwise orchestrator will continue polling it.
                 container_execution.status = bts.ContainerExecutionStatus.CANCELLED
+                terminated = True
 
             # Mark the execution nodes as cancelled only after the launched container is successfully terminated (if needed)
             for execution_node in votes_to_terminate:
@@ -586,7 +588,8 @@ class OrchestratorService_Sql:
                     session=session, execution=execution_node
                 )
             session.commit()
-            return
+            if terminated:
+                return
 
         # Asking the launcher to refresh the container state.
         reloaded_launched_container: launcher_interfaces.LaunchedContainer = (
