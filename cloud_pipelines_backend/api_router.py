@@ -1,5 +1,7 @@
 import contextlib
+import dataclasses
 import typing
+import typing_extensions
 
 import fastapi
 import sqlalchemy
@@ -12,11 +14,22 @@ if typing.TYPE_CHECKING:
     from .launchers import interfaces as launcher_interfaces
 
 
+class Permissions(typing_extensions.TypedDict):
+    read: bool
+    write: bool
+    admin: bool
+
+
+@dataclasses.dataclass
+class UserDetails:
+    name: str | None
+    permissions: Permissions
+
+
 def setup_routes(
     app: fastapi.FastAPI,
     database_uri: str,
-    get_user_name: typing.Callable[[], str] | None = None,
-    ensure_admin_user: typing.Callable | None = None,
+    user_details_getter: typing.Callable[..., UserDetails] | None,
     container_launcher_for_log_streaming: (
         "launcher_interfaces.ContainerTaskLauncher | None"
     ) = None,
@@ -33,6 +46,40 @@ def setup_routes(
             status_code=404,
             content={"message": str(exc)},
         )
+
+    if user_details_getter:
+        get_user_details_dependency = fastapi.Depends(user_details_getter)
+
+        def get_user_name(
+            user_details: typing.Annotated[UserDetails, get_user_details_dependency],
+        ) -> str | None:
+            return user_details.name
+
+        get_user_name_dependency = fastapi.Depends(get_user_name)
+
+        def ensure_admin_user(
+            user_details: typing.Annotated[UserDetails, get_user_details_dependency],
+        ):
+            if not user_details.permissions.get("admin"):
+                raise RuntimeError(f"User {user_details.name} is not an admin user")
+
+        ensure_admin_user_dependency = fastapi.Depends(ensure_admin_user)
+
+        def ensure_user_can_write(
+            user_details: typing.Annotated[UserDetails, get_user_details_dependency],
+        ):
+            if not user_details.permissions.get("write"):
+                raise RuntimeError(
+                    f"User {user_details.name} does not have write permission"
+                )
+
+        ensure_user_can_write_dependency = fastapi.Depends(ensure_user_can_write)
+
+    else:
+        get_user_details_dependency = None
+        get_user_name_dependency = None
+        ensure_admin_user_dependency = None
+        ensure_user_can_write_dependency = None
 
     if database_uri.startswith("mysql://"):
         try:
@@ -168,12 +215,12 @@ def setup_routes(
             )
 
     list_pipeline_runs_func = pipeline_run_service.list
-    if get_user_name:
+    if get_user_name_dependency:
         # The `created_by` parameter value now comes from a Dependency (instead of request)
         list_pipeline_runs_func = add_parameter_annotation_metadata(
             list_pipeline_runs_func,
             parameter_name="current_user",
-            annotation_metadata=fastapi.Depends(get_user_name),
+            annotation_metadata=get_user_name_dependency,
         )
 
     router.get("/api/pipeline_runs/", tags=["pipelineRuns"], **default_config)(
@@ -186,18 +233,25 @@ def setup_routes(
     create_run_func = pipeline_run_service.create
     # The `session` parameter value now comes from a Dependency (instead of request)
     create_run_func = replace_annotations(create_run_func, orm.Session, SessionDep)
-    if get_user_name:
+    if get_user_name_dependency:
         # The `created_by` parameter value now comes from a Dependency (instead of request)
         create_run_func = add_parameter_annotation_metadata(
             create_run_func,
             parameter_name="created_by",
-            annotation_metadata=fastapi.Depends(get_user_name),
+            annotation_metadata=get_user_name_dependency,
         )
 
     router.post(
         "/api/pipeline_runs/",
         tags=["pipelineRuns"],
-        dependencies=[fastapi.Depends(check_not_readonly)],
+        dependencies=(
+            [fastapi.Depends(check_not_readonly)]
+            + (
+                [ensure_user_can_write_dependency]
+                if ensure_user_can_write_dependency
+                else []
+            )
+        ),
         **default_config,
     )(create_run_func)
 
@@ -209,30 +263,40 @@ def setup_routes(
         )
     )
 
-    def pipeline_run_cancel(
-        session: SessionDep, id: backend_types_sql.IdType, terminated_by: str
-    ):
-        skip_user_check = False
-        try:
-            if ensure_admin_user:
-                ensure_admin_user()
-            skip_user_check = True
-        except:
-            pass
-        pipeline_run_service.terminate(
-            session=session,
-            id=id,
-            terminated_by=terminated_by,
-            skip_user_check=skip_user_check,
-        )
+    if get_user_name_dependency:
+        # The `terminated_by` parameter value now comes from a Dependency (instead of request)
+        # We also allow admin users to cancel any run
+        def pipeline_run_cancel(
+            session: SessionDep,
+            id: backend_types_sql.IdType,
+            user_details: typing.Annotated[UserDetails, get_user_details_dependency],
+        ):
+            terminated_by = user_details.name
+            if user_details and user_details and user_details.permissions.get("admin"):
+                skip_user_check = True
+            else:
+                skip_user_check = False
+            pipeline_run_service.terminate(
+                session=session,
+                id=id,
+                terminated_by=terminated_by,
+                skip_user_check=skip_user_check,
+            )
 
-    if get_user_name:
-        # The `created_by` parameter value now comes from a Dependency (instead of request)
-        pipeline_run_cancel = add_parameter_annotation_metadata(
-            pipeline_run_cancel,
-            parameter_name="terminated_by",
-            annotation_metadata=fastapi.Depends(get_user_name),
-        )
+    else:
+
+        def pipeline_run_cancel(
+            session: SessionDep,
+            id: backend_types_sql.IdType,
+            terminated_by: str,
+        ):
+            pipeline_run_service.terminate(
+                session=session,
+                id=id,
+                terminated_by=terminated_by,
+                skip_user_check=False,
+            )
+
     router.post(
         "/api/pipeline_runs/{id}/cancel",
         tags=["pipelineRuns"],
@@ -246,7 +310,7 @@ def setup_routes(
         # Hiding the admin methods from the public schema.
         # include_in_schema=False,
         dependencies=(
-            [fastapi.Depends(ensure_admin_user)] if ensure_admin_user else None
+            [ensure_admin_user_dependency] if ensure_admin_user_dependency else None
         ),
         **default_config,
     )
@@ -260,7 +324,7 @@ def setup_routes(
         # Hiding the admin methods from the public schema.
         # include_in_schema=False,
         dependencies=(
-            [fastapi.Depends(ensure_admin_user)] if ensure_admin_user else None
+            [ensure_admin_user_dependency] if ensure_admin_user_dependency else None
         ),
         **default_config,
     )
