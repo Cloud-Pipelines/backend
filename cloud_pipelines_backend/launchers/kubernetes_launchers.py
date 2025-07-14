@@ -738,7 +738,9 @@ class LaunchedKubernetesContainer(
             namespace=self._namespace,
             container=_MAIN_CONTAINER_NAME,
             timestamps=True,
-            stream="All",
+            # Disabled stream="All" due to error in some new GKE clusters
+            # HTTP response body: {"kind":"Status","apiVersion":"v1","metadata":{},"status":"Failure","message":"PodLogOptions \"task-pod-xxxxx\" is invalid: stream: Forbidden: may not be specified","reason":"Invalid","details":{"name":"task-pod-xxxxx","kind":"PodLogOptions","causes":[{"reason":"FieldValueForbidden","message":"Forbidden: may not be specified","field":"stream"}]},"code":422}
+            # stream="All",
             _request_timeout=launcher._request_timeout,
         )
 
@@ -757,7 +759,9 @@ class LaunchedKubernetesContainer(
             namespace=self._namespace,
             container=_MAIN_CONTAINER_NAME,
             timestamps=True,
-            stream="All",
+            # Disabled stream="All" due to error in some new GKE clusters
+            # HTTP response body: {"kind":"Status","apiVersion":"v1","metadata":{},"status":"Failure","message":"PodLogOptions \"task-pod-xxxxx\" is invalid: stream: Forbidden: may not be specified","reason":"Invalid","details":{"name":"task-pod-xxxxx","kind":"PodLogOptions","causes":[{"reason":"FieldValueForbidden","message":"Forbidden: may not be specified","field":"stream"}]},"code":422}
+            # stream="All",
             _request_timeout=launcher._request_timeout,
         )
         for line in stream:
