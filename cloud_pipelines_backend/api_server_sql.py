@@ -77,10 +77,14 @@ class PipelineRunsApiService_Sql:
         # Arbitrary metadata. Can be used to specify user.
         annotations: Optional[dict[str, Any]] = None,
         created_by: str | None = None,
+        is_validated: bool = True,
     ) -> PipelineRunResponse:
         # TODO: Validate the pipeline spec
         # TODO: Load and validate all components
         # TODO: Fetch missing components and populate component specs
+
+        if not is_validated:
+            raise ApiServiceError("Access denied")
 
         with session.begin():
 

@@ -29,6 +29,7 @@ def setup_routes(
     ) = None,
     db_connection_pool_size: int | None = None,
     db_connection_pool_max_overflow: int | None = None,
+    validate_request: typing.Callable[[fastapi.Request], bool] | None = None,
 ):
     # We request `app: fastapi.FastAPI` instead of just returning the router
     # because we want to add exception handler which is only suported for `FastAPI`.
@@ -190,6 +191,14 @@ def setup_routes(
     create_run_func = pipeline_run_service.create
     # The `session` parameter value now comes from a Dependency (instead of request)
     create_run_func = replace_annotations(create_run_func, orm.Session, SessionDep)
+    
+    if validate_request:
+        create_run_func = add_parameter_annotation_metadata(
+            create_run_func,
+            parameter_name="is_validated",
+            annotation_metadata=fastapi.Depends(validate_request),
+        )
+
     if get_user_name:
         # The `created_by` parameter value now comes from a Dependency (instead of request)
         create_run_func = add_parameter_annotation_metadata(
