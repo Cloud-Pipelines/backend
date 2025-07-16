@@ -639,9 +639,20 @@ class OrchestratorService_Sql:
             container_execution.exit_code = reloaded_launched_container.exit_code
             container_execution.started_at = reloaded_launched_container.started_at
             container_execution.ended_at = reloaded_launched_container.ended_at
-            _retry(
-                lambda: reloaded_launched_container.upload_log(launcher=self._launcher)
-            )
+
+            # Don't fail the execution if log upload fails.
+            # Logs are important, but not so important that we should fail a successfully completed container execution.
+            try:
+                _retry(
+                    lambda: reloaded_launched_container.upload_log(
+                        launcher=self._launcher
+                    )
+                )
+            except Exception as ex:
+                _logger.exception(
+                    f"! Error during `LaunchedContainer.upload_log` call: {ex}."
+                )
+
             _MAX_PRELOAD_VALUE_SIZE = 255
 
             def _maybe_preload_value(
