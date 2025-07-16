@@ -729,7 +729,7 @@ class OrchestratorService_Sql:
                         uri=output_artifact_uris[output_name],
                         # Preloading artifact value is it's small enough (e.g. <=255 bytes)
                         value=_retry(
-                            lambda: _maybe_preload_value(
+                            lambda: _maybe_get_small_artifact_value(
                                 uri_reader=self._storage_provider.make_uri(
                                     output_artifact_uris[output_name]
                                 ).get_reader(),
@@ -950,3 +950,26 @@ def _record_orchestration_error_message(
         execution_node.extra_data[
             bts.EXECUTION_NODE_EXTRA_DATA_ORCHESTRATION_ERROR_MESSAGE_KEY
         ] = message
+
+
+_MAX_PRELOAD_VALUE_SIZE = 255
+
+
+def _maybe_get_small_artifact_value(
+    uri_reader: storage_provider_interfaces.UriReader,
+    data_info: storage_provider_interfaces.DataInfo,
+) -> str | None:
+    """Preloads artifact value is it's small enough (e.g. <=255 bytes)"""
+    if not data_info.is_dir and data_info.total_size < _MAX_PRELOAD_VALUE_SIZE:
+        # Don't fail the execution if small value preloading fails.
+        # Those values may be useful for preservation, but not so important that we should fail a successfully completed container execution.
+        try:
+            data = uri_reader.download_as_bytes()
+        except Exception as ex:
+            _logger.exception(f"Error during preloading small artifact values.")
+            return None
+        try:
+            text = data.decode("utf-8")
+            return text
+        except:
+            pass
