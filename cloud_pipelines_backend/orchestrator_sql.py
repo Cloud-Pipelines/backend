@@ -664,7 +664,15 @@ class OrchestratorService_Sql:
                     not data_info.is_dir
                     and data_info.total_size < _MAX_PRELOAD_VALUE_SIZE
                 ):
-                    data = uri_reader.download_as_bytes()
+                    # Don't fail the execution if small value preloading fails.
+                    # Those values may be useful for preservation, but not so important that we should fail a successfully completed container execution.
+                    try:
+                        data = uri_reader.download_as_bytes()
+                    except Exception as ex:
+                        _logger.exception(
+                            f"Error during preloading small artifact values."
+                        )
+                        return None
                     try:
                         text = data.decode("utf-8")
                         return text
