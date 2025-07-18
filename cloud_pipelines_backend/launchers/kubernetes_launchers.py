@@ -663,12 +663,17 @@ class LaunchedKubernetesContainer(
         main_container_state = self._get_main_container_state()
         if main_container_state is None:
             return None
+        terminated_state: k8s_client_lib.V1ContainerStateTerminated = (
+            main_container_state.terminated
+        )
+        if terminated_state is not None:
+            return terminated_state.started_at
         running_state: k8s_client_lib.V1ContainerStateRunning = (
             main_container_state.running
         )
-        if running_state is None:
-            return None
-        return running_state.started_at
+        if running_state is not None:
+            return running_state.started_at
+        return None
 
     @property
     def ended_at(self) -> datetime.datetime | None:
