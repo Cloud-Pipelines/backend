@@ -26,14 +26,49 @@ class UserDetails:
     permissions: Permissions
 
 
+def create_db_engine(
+    database_uri: str,
+    **kwargs,
+):
+    if database_uri.startswith("mysql://"):
+        try:
+            import MySQLdb
+        except ImportError:
+            # Using PyMySQL instead of missing MySQLdb
+            database_uri = database_uri.replace("mysql://", "mysql+pymysql://")
+
+    create_engine_kwargs = {}
+    if database_uri == "sqlite://":
+        create_engine_kwargs["poolclass"] = sqlalchemy.pool.StaticPool
+
+    if database_uri.startswith("sqlite://"):
+        # FastApi claims it's needed and safe: https://fastapi.tiangolo.com/tutorial/sql-databases/#create-an-engine
+        create_engine_kwargs.setdefault("connect_args", {})["check_same_thread"] = False
+        # https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#using-a-memory-database-in-multiple-threads
+
+    if create_engine_kwargs.get("poolclass") != sqlalchemy.pool.StaticPool:
+        # Preventing the "MySQL server has gone away" error:
+        # https://docs.sqlalchemy.org/en/20/faq/connections.html#mysql-server-has-gone-away
+        create_engine_kwargs["pool_recycle"] = 3600
+        create_engine_kwargs["pool_pre_ping"] = True
+
+    if kwargs:
+        create_engine_kwargs.update(kwargs)
+
+    db_engine = sqlalchemy.create_engine(
+        url=database_uri,
+        **create_engine_kwargs,
+    )
+    return db_engine
+
+
 def setup_routes(
     app: fastapi.FastAPI,
-    database_uri: str,
-    user_details_getter: typing.Callable[..., UserDetails] | None,
+    db_engine: sqlalchemy.Engine,
+    user_details_getter: typing.Callable[..., UserDetails] | None = None,
     container_launcher_for_log_streaming: (
         "launcher_interfaces.ContainerTaskLauncher | None"
     ) = None,
-    sqlalchemy_create_engine_kwargs: dict | None = None,
 ):
     # We request `app: fastapi.FastAPI` instead of just returning the router
     # because we want to add exception handler which is only supported for `FastAPI`.
@@ -80,36 +115,6 @@ def setup_routes(
         get_user_name_dependency = None
         ensure_admin_user_dependency = None
         ensure_user_can_write_dependency = None
-
-    if database_uri.startswith("mysql://"):
-        try:
-            import MySQLdb
-        except ImportError:
-            # Using PyMySQL instead of missing MySQLdb
-            database_uri = database_uri.replace("mysql://", "mysql+pymysql://")
-
-    create_engine_kwargs = {}
-    if database_uri == "sqlite://":
-        create_engine_kwargs["poolclass"] = sqlalchemy.pool.StaticPool
-
-    if database_uri.startswith("sqlite://"):
-        # FastApi claims it's needed and safe: https://fastapi.tiangolo.com/tutorial/sql-databases/#create-an-engine
-        create_engine_kwargs.setdefault("connect_args", {})["check_same_thread"] = False
-        # https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#using-a-memory-database-in-multiple-threads
-
-    if create_engine_kwargs.get("poolclass") != sqlalchemy.pool.StaticPool:
-        # Preventing the "MySQL server has gone away" error:
-        # https://docs.sqlalchemy.org/en/20/faq/connections.html#mysql-server-has-gone-away
-        create_engine_kwargs["pool_recycle"] = 3600
-        create_engine_kwargs["pool_pre_ping"] = True
-
-    if sqlalchemy_create_engine_kwargs:
-        create_engine_kwargs.update(sqlalchemy_create_engine_kwargs)
-
-    db_engine = sqlalchemy.create_engine(
-        url=database_uri,
-        **create_engine_kwargs,
-    )
 
     def get_session():
         with orm.Session(autocommit=False, autoflush=False, bind=db_engine) as session:

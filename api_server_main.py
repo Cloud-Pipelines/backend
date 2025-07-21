@@ -28,4 +28,8 @@ database_uri = (
     or DEFAULT_DATABASE_URI
 )
 
-api_router.setup_routes(app=app, database_uri=database_uri)
+db_engine = api_router.create_db_engine(
+    database_uri=database_uri,
+)
+
+api_router.setup_routes(app=app, db_engine=db_engine)
