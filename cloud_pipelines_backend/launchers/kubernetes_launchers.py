@@ -410,6 +410,7 @@ class _KubernetesContainerLauncher(
             output_uris=output_uris,
             log_uri=log_uri,
             debug_pod=created_pod,
+            cluster_server=self._api_client.configuration.host,
         )
         return launched_kubernetes_container
 
@@ -581,12 +582,14 @@ class LaunchedKubernetesContainer(
         output_uris: dict[str, str],
         log_uri: str,
         debug_pod: k8s_client_lib.V1Pod,
+        cluster_server: str | None = None,
     ):
         self._pod_name = pod_name
         self._namespace = namespace
         self._output_uris = output_uris
         self._log_uri = log_uri
         self._debug_pod = debug_pod
+        self._cluster_server = cluster_server
 
     def _get_main_container_state(
         self,
@@ -708,6 +711,7 @@ class LaunchedKubernetesContainer(
                 # launched_container_class_name=self.__class__.__name__,
                 pod_name=self._pod_name,
                 namespace=self._namespace,
+                cluster_server=self._cluster_server,
                 output_uris=self._output_uris,
                 log_uri=self._log_uri,
                 debug_pod=pod_dict,
@@ -723,6 +727,7 @@ class LaunchedKubernetesContainer(
         return LaunchedKubernetesContainer(
             pod_name=d["pod_name"],
             namespace=d["namespace"],
+            cluster_server=d.get("cluster_server"),
             output_uris=d["output_uris"],
             log_uri=d["log_uri"],
             debug_pod=debug_pod,
