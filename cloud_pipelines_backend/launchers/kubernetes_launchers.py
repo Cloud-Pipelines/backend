@@ -704,16 +704,21 @@ class LaunchedKubernetesContainer(
         if pod_metadata:
             pod_metadata.pop("managedFields", None)
         result = dict(
-            pod_name=self._pod_name,
-            namespace=self._namespace,
-            output_uris=self._output_uris,
-            log_uri=self._log_uri,
-            debug_pod=pod_dict,
+            kubernetes=dict(
+                # launched_container_class_name=self.__class__.__name__,
+                pod_name=self._pod_name,
+                namespace=self._namespace,
+                output_uris=self._output_uris,
+                log_uri=self._log_uri,
+                debug_pod=pod_dict,
+            ),
         )
         return result
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> LaunchedKubernetesContainer:
+        # Backwards compatibility for old container execution records.
+        d = d.get("kubernetes", d)
         debug_pod = _kubernetes_deserialize(d["debug_pod"], cls=k8s_client_lib.V1Pod)
         return LaunchedKubernetesContainer(
             pod_name=d["pod_name"],
