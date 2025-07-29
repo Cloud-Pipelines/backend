@@ -59,21 +59,8 @@ def main():
     logger.info("Kubernetes works")
 
     default_task_annotations = {
-        kubernetes_launchers.MAIN_CONTAINER_PATCH_ANNOTATION_KEY: {
-            "resources": {
-                "requests": {
-                    "cpu": "1000m",
-                    "memory": "512Mi",
-                    # "nvidia.com/gpu": "1",
-                },
-                "limits": {
-                    "cpu": "1000m",
-                    "memory": "512Mi",
-                    # "nvidia.com/gpu": "1",
-                },
-            }
-        },
-        kubernetes_launchers.POD_PATCH_ANNOTATION_KEY: {},
+        kubernetes_launchers.RESOURCES_CPU_ANNOTATION_KEY: "1",
+        kubernetes_launchers.RESOURCES_MEMORY_ANNOTATION_KEY: "512Mi",
     }
 
     # launcher = kubernetes_launchers.KubernetesWithGcsFuseContainerLauncher(

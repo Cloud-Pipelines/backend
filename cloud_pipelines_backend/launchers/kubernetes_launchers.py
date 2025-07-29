@@ -35,10 +35,6 @@ _MAIN_CONTAINER_NAME = "main"
 _CLOUD_PIPELINES_KUBERNETES_ANNOTATION_KEY = "cloud-pipelines.net"
 _KUBERNETES_LAUNCHER_ANNOTATION_KEY = "cloud-pipelines.net/launchers.kubernetes"
 # ComponentSpec annotation keys
-POD_PATCH_ANNOTATION_KEY = "cloud-pipelines.net/launchers/kubernetes/pod_patch"
-MAIN_CONTAINER_PATCH_ANNOTATION_KEY = (
-    "cloud-pipelines.net/launchers/kubernetes/main_container_patch"
-)
 RESOURCES_CPU_ANNOTATION_KEY = "cloud-pipelines.net/launchers/generic/resources.cpu"
 RESOURCES_MEMORY_ANNOTATION_KEY = (
     "cloud-pipelines.net/launchers/generic/resources.memory"
@@ -323,21 +319,6 @@ class _KubernetesContainerLauncher(
 
         annotations = annotations or {}
 
-        # Applying the main container patch
-        main_container_patch: str | dict | None = annotations.get(
-            MAIN_CONTAINER_PATCH_ANNOTATION_KEY
-        )
-        if isinstance(main_container_patch, str):
-            main_container_patch = typing.cast(dict, json.loads(main_container_patch))
-        if main_container_patch:
-            # Produces proper camelCase keys
-            main_container_spec_dict = _kubernetes_serialize(main_container_spec)
-            _update_dict_recursively(main_container_spec_dict, main_container_patch)
-            # Properly parses camelCase keys
-            main_container_spec = _kubernetes_deserialize(
-                obj_dict=main_container_spec_dict, cls=k8s_client_lib.V1Container
-            )
-
         cpu_resource_request = annotations.get(RESOURCES_CPU_ANNOTATION_KEY)
         memory_resource_request = annotations.get(RESOURCES_MEMORY_ANNOTATION_KEY)
         if cpu_resource_request or memory_resource_request:
@@ -374,17 +355,7 @@ class _KubernetesContainerLauncher(
             spec=pod_spec,
         )
 
-        # Applying the pod patch
-        pod_patch: str | dict | None = annotations.get(POD_PATCH_ANNOTATION_KEY)
-        if isinstance(pod_patch, str):
-            pod_patch = typing.cast(dict, json.loads(pod_patch))
-        if pod_patch:
-            # Produces proper camelCase keys
-            pod_dict: dict = _kubernetes_serialize(pod)
-            _update_dict_recursively(pod_dict, pod_patch)
-            # Properly parses camelCase keys
-            pod = _kubernetes_deserialize(obj_dict=pod_dict, cls=k8s_client_lib.V1Pod)
-
+        # Applying the pod post-processor
         if self._pod_postprocessor:
             pod = self._pod_postprocessor(pod=pod, annotations=annotations)
 
