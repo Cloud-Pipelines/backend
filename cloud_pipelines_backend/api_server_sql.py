@@ -41,6 +41,7 @@ class PipelineRunResponse:
     created_by: str | None = None
     created_at: datetime.datetime | None = None
     pipeline_name: str | None = None
+    execution_status_stats: dict[str, int] | None = None
 
     @classmethod
     def from_db(cls, pipeline_run: bts.PipelineRun) -> "PipelineRunResponse":
@@ -166,6 +167,7 @@ class PipelineRunsApiService_Sql:
         filter: str | None = None,
         current_user: str | None = None,
         include_pipeline_names: bool = False,
+        include_execution_stats: bool = False,
     ) -> ListPipelineJobsResponse:
         page_token_dict = _decode_page_token(page_token)
         OFFSET_KEY = "offset"
@@ -235,6 +237,14 @@ class PipelineRunsApiService_Sql:
                         if component_spec:
                             pipeline_name = component_spec.name
                 response.pipeline_name = pipeline_name
+            if include_execution_stats:
+                execution_status_stats = self._calculate_execution_status_stats(
+                    session=session, root_execution_id=pipeline_run.root_execution_id
+                )
+                response.execution_status_stats = {
+                    status.value: count
+                    for status, count in execution_status_stats.items()
+                }
             return response
 
         return ListPipelineJobsResponse(
@@ -244,6 +254,33 @@ class PipelineRunsApiService_Sql:
             ],
             next_page_token=next_page_token,
         )
+
+    def _calculate_execution_status_stats(
+        self, session: orm.Session, root_execution_id: bts.IdType
+    ) -> dict[bts.ContainerExecutionStatus, int]:
+        query = (
+            sql.select(
+                bts.ExecutionNode.container_execution_status,
+                sql.func.count().label("count"),
+            )
+            .join(
+                bts.ExecutionToAncestorExecutionLink,
+                bts.ExecutionToAncestorExecutionLink.execution_id
+                == bts.ExecutionNode.id,
+            )
+            .where(
+                bts.ExecutionToAncestorExecutionLink.ancestor_execution_id
+                == root_execution_id
+            )
+            .where(bts.ExecutionNode.container_execution_status != None)
+            .group_by(
+                bts.ExecutionNode.container_execution_status,
+            )
+        )
+        execution_status_stat_rows = session.execute(query).tuples().all()
+        execution_status_stats = dict(execution_status_stat_rows)
+
+        return execution_status_stats
 
 
 def _decode_page_token(page_token: str) -> dict[str, Any]:
