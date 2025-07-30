@@ -67,6 +67,7 @@ from sqlalchemy import orm
 
 
 class PipelineRunsApiService_Sql:
+    PIPELINE_NAME_EXTRA_DATA_KEY = "pipeline_name"
 
     def create(
         self,
@@ -81,6 +82,8 @@ class PipelineRunsApiService_Sql:
         # TODO: Validate the pipeline spec
         # TODO: Load and validate all components
         # TODO: Fetch missing components and populate component specs
+
+        pipeline_name = root_task.component_ref.spec.name
 
         with session.begin():
 
@@ -97,6 +100,9 @@ class PipelineRunsApiService_Sql:
                 updated_at=current_time,
                 annotations=annotations,
                 created_by=created_by,
+                extra_data={
+                    self.PIPELINE_NAME_EXTRA_DATA_KEY: pipeline_name,
+                },
             )
             session.add(pipeline_run)
             session.commit()
