@@ -40,6 +40,7 @@ class PipelineRunResponse:
     # status: "PipelineJobStatus"
     created_by: str | None = None
     created_at: datetime.datetime | None = None
+    pipeline_name: str | None = None
 
     @classmethod
     def from_db(cls, pipeline_run: bts.PipelineRun) -> "PipelineRunResponse":
@@ -164,6 +165,7 @@ class PipelineRunsApiService_Sql:
         # page_size: int  = 10,
         filter: str | None = None,
         current_user: str | None = None,
+        include_pipeline_names: bool = False,
     ) -> ListPipelineJobsResponse:
         page_token_dict = _decode_page_token(page_token)
         OFFSET_KEY = "offset"
@@ -211,9 +213,33 @@ class PipelineRunsApiService_Sql:
         next_page_token = _encode_page_token(next_page_token_dict)
         if len(pipeline_runs) < page_size:
             next_page_token = None
+
+        def create_pipeline_run_response(
+            pipeline_run: bts.PipelineRun,
+        ) -> PipelineRunResponse:
+            response = PipelineRunResponse.from_db(pipeline_run)
+            if include_pipeline_names:
+                pipeline_name = None
+                extra_data = pipeline_run.extra_data or {}
+                if self.PIPELINE_NAME_EXTRA_DATA_KEY in extra_data:
+                    pipeline_name = extra_data[self.PIPELINE_NAME_EXTRA_DATA_KEY]
+                else:
+                    execution_node = session.get(
+                        bts.ExecutionNode, pipeline_run.root_execution_id
+                    )
+                    if execution_node:
+                        task_spec = structures.TaskSpec.from_json_dict(
+                            execution_node.task_spec
+                        )
+                        component_spec = task_spec.component_ref.spec
+                        if component_spec:
+                            pipeline_name = component_spec.name
+                response.pipeline_name = pipeline_name
+            return response
+
         return ListPipelineJobsResponse(
             pipeline_runs=[
-                PipelineRunResponse.from_db(pipeline_run)
+                create_pipeline_run_response(pipeline_run)
                 for pipeline_run in pipeline_runs
             ],
             next_page_token=next_page_token,
