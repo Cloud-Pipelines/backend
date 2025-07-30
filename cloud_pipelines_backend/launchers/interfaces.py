@@ -66,7 +66,7 @@ class ContainerStatus(str, enum.Enum):
     ERROR = "ERROR"
 
 
-class LaunchedContainer(abc.ABC, typing.Generic[_TLauncher]):
+class LaunchedContainer(abc.ABC):
 
     # @classmethod
     # def get(cls: typing.Type[_TLaunchedContainer]) -> _TLaunchedContainer:
@@ -118,19 +118,19 @@ class LaunchedContainer(abc.ABC, typing.Generic[_TLauncher]):
     def from_dict(cls, d: dict[str, Any]) -> typing.Self:
         raise NotImplementedError()
 
-    def get_refreshed(self, launcher: _TLauncher) -> typing.Self:
+    def get_refreshed(self,) -> typing.Self:
         raise NotImplementedError()
 
-    def get_log(self, launcher: _TLauncher) -> str:
+    def get_log(self) -> str:
         raise NotImplementedError()
 
-    def upload_log(self, launcher: _TLauncher):
+    def upload_log(self):
         raise NotImplementedError()
 
-    def stream_log_lines(self, launcher: _TLauncher) -> typing.Iterator[str]:
+    def stream_log_lines(self) -> typing.Iterator[str]:
         raise NotImplementedError()
 
-    def terminate(self, launcher: _TLauncher):
+    def terminate(self):
         raise NotImplementedError()
 
 

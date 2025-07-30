@@ -561,16 +561,14 @@ class OrchestratorService_Sql:
                 )
                 # We should preserve the logs before terminating/deleting the container
                 try:
-                    _retry(
-                        lambda: launched_container.upload_log(launcher=self._launcher)
-                    )
+                    _retry(lambda: launched_container.upload_log())
                 except:
                     _logger.exception(
                         f"Error uploading logs for {container_execution.id=} before termination."
                     )
                 # Requesting container termination.
                 # Termination might not happen immediately (e.g. Kubernetes has grace period).
-                launched_container.terminate(launcher=self._launcher)
+                launched_container.terminate()
                 container_execution.ended_at = _get_current_time()
                 # We need to mark the execution as CANCELLED otherwise orchestrator will continue polling it.
                 container_execution.status = bts.ContainerExecutionStatus.CANCELLED
@@ -643,11 +641,7 @@ class OrchestratorService_Sql:
             # Don't fail the execution if log upload fails.
             # Logs are important, but not so important that we should fail a successfully completed container execution.
             try:
-                _retry(
-                    lambda: reloaded_launched_container.upload_log(
-                        launcher=self._launcher
-                    )
-                )
+                _retry(reloaded_launched_container.upload_log)
             except Exception as ex:
                 _logger.exception(
                     f"! Error during `LaunchedContainer.upload_log` call: {ex}."
@@ -782,9 +776,7 @@ class OrchestratorService_Sql:
                     message=orchestration_error_message,
                 )
 
-            _retry(
-                lambda: reloaded_launched_container.upload_log(launcher=self._launcher)
-            )
+            _retry(reloaded_launched_container.upload_log)
             # Skip downstream executions
             for execution_node in execution_nodes:
                 execution_node.container_execution_status = (

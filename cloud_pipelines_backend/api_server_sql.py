@@ -356,6 +356,7 @@ class GetContainerExecutionStateResponse:
     exit_code: int | None = None
     started_at: datetime.datetime | None = None
     ended_at: datetime.datetime | None = None
+    debug_info: dict | None = None
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -373,8 +374,9 @@ class ExecutionNodesApiService_Sql:
             raise ItemNotFoundError(f"Execution with {id=} does not exist.")
 
         parent_pipeline_run_id = session.scalar(
-            sql.select(bts.PipelineRun.id)
-            .where(bts.PipelineRun.root_execution_id == id)
+            sql.select(bts.PipelineRun.id).where(
+                bts.PipelineRun.root_execution_id == id
+            )
         )
 
         ancestor_pipeline_run_id = session.scalar(
@@ -532,6 +534,7 @@ class ExecutionNodesApiService_Sql:
             exit_code=container_execution.exit_code,
             started_at=container_execution.started_at,
             ended_at=container_execution.ended_at,
+            debug_info=container_execution.launcher_data,
         )
 
     def get_artifacts(
@@ -689,7 +692,7 @@ class ExecutionNodesApiService_Sql:
                 container_execution.launcher_data
             )
         )
-        return launched_container.stream_log_lines(container_launcher)
+        return launched_container.stream_log_lines()
 
 
 @dataclasses.dataclass(kw_only=True)

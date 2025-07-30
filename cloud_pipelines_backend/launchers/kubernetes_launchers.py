@@ -382,6 +382,7 @@ class _KubernetesContainerLauncher(
             log_uri=log_uri,
             debug_pod=created_pod,
             cluster_server=self._api_client.configuration.host,
+            launcher=self,
         )
         return launched_kubernetes_container
 
@@ -397,13 +398,14 @@ class _KubernetesContainerLauncher(
 
         new_launched_container = copy.copy(launched_container)
         new_launched_container._debug_pod = pod
+        new_launched_container._launcher = self
         return new_launched_container
 
     def get_refreshed_launched_container_from_dict(
         self, launched_container_dict: dict
     ) -> "LaunchedKubernetesContainer":
         launched_container = LaunchedKubernetesContainer.from_dict(
-            launched_container_dict
+            launched_container_dict, launcher=self
         )
         return self.get_refreshed_launched_container(launched_container)
 
@@ -411,7 +413,7 @@ class _KubernetesContainerLauncher(
         self, launched_container_dict: dict
     ) -> "LaunchedKubernetesContainer":
         launched_container = LaunchedKubernetesContainer.from_dict(
-            launched_container_dict
+            launched_container_dict, launcher=self
         )
         return launched_container
 
@@ -542,9 +544,7 @@ class KubernetesWithGcsFuseContainerLauncher(_KubernetesContainerLauncher):
         )
 
 
-class LaunchedKubernetesContainer(
-    interfaces.LaunchedContainer[_KubernetesContainerLauncher]
-):
+class LaunchedKubernetesContainer(interfaces.LaunchedContainer):
 
     def __init__(
         self,
@@ -554,6 +554,7 @@ class LaunchedKubernetesContainer(
         log_uri: str,
         debug_pod: k8s_client_lib.V1Pod,
         cluster_server: str | None = None,
+        launcher: _KubernetesContainerLauncher | None = None,
     ):
         self._pod_name = pod_name
         self._namespace = namespace
@@ -561,6 +562,14 @@ class LaunchedKubernetesContainer(
         self._log_uri = log_uri
         self._debug_pod = debug_pod
         self._cluster_server = cluster_server
+        self._launcher = launcher
+
+    def _get_launcher(self):
+        if not self._launcher:
+            raise interfaces.LauncherError(
+                "This action requires a launcher, but LaunchedKubernetesContainer was constructed without one."
+            )
+        return self._launcher
 
     def _get_main_container_state(
         self,
@@ -691,7 +700,9 @@ class LaunchedKubernetesContainer(
         return result
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> LaunchedKubernetesContainer:
+    def from_dict(
+        cls, d: dict[str, Any], launcher: _KubernetesContainerLauncher | None = None
+    ) -> LaunchedKubernetesContainer:
         # Backwards compatibility for old container execution records.
         d = d.get("kubernetes", d)
         debug_pod = _kubernetes_deserialize(d["debug_pod"], cls=k8s_client_lib.V1Pod)
@@ -702,11 +713,11 @@ class LaunchedKubernetesContainer(
             output_uris=d["output_uris"],
             log_uri=d["log_uri"],
             debug_pod=debug_pod,
+            launcher=launcher,
         )
 
-    def get_refreshed(
-        self, launcher: _KubernetesContainerLauncher
-    ) -> "LaunchedKubernetesContainer":
+    def get_refreshed(self) -> "LaunchedKubernetesContainer":
+        launcher = self._get_launcher()
         core_api_client = k8s_client_lib.CoreV1Api(api_client=launcher._api_client)
         pod: k8s_client_lib.V1Pod = core_api_client.read_namespaced_pod(
             name=self._pod_name,
@@ -717,7 +728,8 @@ class LaunchedKubernetesContainer(
         new_launched_container._debug_pod = pod
         return new_launched_container
 
-    def get_log(self, launcher: _KubernetesContainerLauncher) -> str:
+    def get_log(self) -> str:
+        launcher = self._get_launcher()
         core_api_client = k8s_client_lib.CoreV1Api(api_client=launcher._api_client)
         return core_api_client.read_namespaced_pod_log(
             name=self._pod_name,
@@ -730,14 +742,14 @@ class LaunchedKubernetesContainer(
             _request_timeout=launcher._request_timeout,
         )
 
-    def upload_log(self, launcher: _KubernetesContainerLauncher):
-        log = self.get_log(launcher=launcher)
+    def upload_log(self):
+        launcher = self._get_launcher()
+        log = self.get_log()
         uri_writer = launcher._storage_provider.make_uri(self._log_uri).get_writer()
         uri_writer.upload_from_text(log)
 
-    def stream_log_lines(
-        self, launcher: _KubernetesContainerLauncher
-    ) -> typing.Iterator[str]:
+    def stream_log_lines(self) -> typing.Iterator[str]:
+        launcher = self._get_launcher()
         core_api_client = k8s_client_lib.CoreV1Api(api_client=launcher._api_client)
         stream = k8s_watch_lib.Watch().stream(
             core_api_client.read_namespaced_pod_log,
@@ -758,7 +770,8 @@ class LaunchedKubernetesContainer(
 
         return pprint.pformat(self.to_dict())
 
-    def terminate(self, launcher: _KubernetesContainerLauncher):
+    def terminate(self):
+        launcher = self._get_launcher()
         core_api_client = k8s_client_lib.CoreV1Api(api_client=launcher._api_client)
         core_api_client.delete_namespaced_pod(
             name=self._pod_name,
