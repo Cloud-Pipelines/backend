@@ -729,7 +729,7 @@ class ExecutionNodesApiService_Sql:
                     container_execution.launcher_data
                 )
             )
-            log_text = launched_container.get_log(launcher=container_launcher)
+            log_text = launched_container.get_log()
 
         return GetContainerExecutionLogResponse(
             log_text=log_text,
