@@ -127,8 +127,8 @@ class PipelineRunsApiService_Sql:
         if not pipeline_run:
             raise ItemNotFoundError(f"Pipeline run {id} not found.")
         if not skip_user_check and (terminated_by != pipeline_run.created_by):
-            raise ApiServiceError(
-                f"The pipeline run {id} was started by {pipeline_run.created_by} and cannnot be terminated by {terminated_by}"
+            raise errors.PermissionError(
+                f"The pipeline run {id} was started by {pipeline_run.created_by} and cannot be terminated by {terminated_by}"
             )
         # Marking the pipeline run for termination
         pipeline_run.extra_data = pipeline_run_extra_data = (
