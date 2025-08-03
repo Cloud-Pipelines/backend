@@ -9,6 +9,7 @@ from sqlalchemy import orm
 
 from . import api_server_sql
 from . import backend_types_sql
+from . import errors
 
 if typing.TYPE_CHECKING:
     from .launchers import interfaces as launcher_interfaces
@@ -73,10 +74,8 @@ def setup_routes(
     # We request `app: fastapi.FastAPI` instead of just returning the router
     # because we want to add exception handler which is only supported for `FastAPI`.
 
-    @app.exception_handler(api_server_sql.ItemNotFoundError)
-    def handle_not_found_error(
-        request: fastapi.Request, exc: api_server_sql.ItemNotFoundError
-    ):
+    @app.exception_handler(errors.ItemNotFoundError)
+    def handle_not_found_error(request: fastapi.Request, exc: errors.ItemNotFoundError):
         return fastapi.responses.JSONResponse(
             status_code=404,
             content={"message": str(exc)},

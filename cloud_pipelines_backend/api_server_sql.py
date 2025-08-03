@@ -25,10 +25,8 @@ def _get_current_time() -> datetime.datetime:
 
 from . import component_structures as structures
 from . import backend_types_sql as bts
-
-
-class ItemNotFoundError(Exception):
-    pass
+from . import errors
+from .errors import ItemNotFoundError
 
 
 # ==== PipelineJobService
