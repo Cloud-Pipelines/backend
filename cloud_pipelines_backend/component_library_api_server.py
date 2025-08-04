@@ -391,7 +391,7 @@ class ComponentLibrary:
 class ComponentLibraryResponse:
     id: str
     name: str
-    root_folder: ComponentLibraryFolder
+    root_folder: ComponentLibraryFolder | None = None
     created_at: datetime.datetime
     updated_at: datetime.datetime
     published_by: str | None = None
@@ -402,12 +402,15 @@ class ComponentLibraryResponse:
     @staticmethod
     def from_db(
         component_library_row: ComponentLibraryRow,
+        include_root_folder: bool = True,
     ) -> "ComponentLibraryResponse":
         return ComponentLibraryResponse(
             id=component_library_row.id,
             name=component_library_row.name,
-            root_folder=ComponentLibraryFolder.from_dict(
-                component_library_row.root_folder
+            root_folder=(
+                ComponentLibraryFolder.from_dict(component_library_row.root_folder)
+                if include_root_folder
+                else None
             ),
             created_at=component_library_row.created_at,
             updated_at=component_library_row.updated_at,
@@ -444,7 +447,9 @@ class ComponentLibraryService:
             component_library_rows = session.scalars(query).all()
             response = ListComponentLibrariesResponse(
                 component_libraries=[
-                    ComponentLibraryResponse.from_db(component_library_row)
+                    ComponentLibraryResponse.from_db(
+                        component_library_row, include_root_folder=False
+                    )
                     for component_library_row in component_library_rows
                 ]
             )
@@ -472,6 +477,7 @@ class ComponentLibraryService:
                     )
             response = ComponentLibraryResponse.from_db(library_row)
             if include_component_texts:
+                assert response.root_folder
                 ComponentLibraryService._fill_component_texts_for_library_folder(
                     session=session, library_folder=response.root_folder
                 )
