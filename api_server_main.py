@@ -32,4 +32,24 @@ db_engine = api_router.create_db_engine(
     database_uri=database_uri,
 )
 
-api_router.setup_routes(app=app, db_engine=db_engine)
+
+ADMIN_USER_NAME = "admin"
+
+
+# ! This function is just a placeholder for user authentication and authorization so that every request has a user name and permissions.
+# ! This placeholder function authenticates the user as user with name "admin" and read/write/admin permissions.
+# ! In a real multi-user deployment, the `get_user_details` function MUST be replaced with real authentication/authorization based on OAuth or another auth system.
+def get_user_details(request: fastapi.Request):
+    return api_router.UserDetails(
+        name=ADMIN_USER_NAME,
+        permissions=api_router.Permissions(
+            read=True,
+            write=True,
+            admin=True,
+        ),
+    )
+
+
+api_router.setup_routes(
+    app=app, db_engine=db_engine, user_details_getter=get_user_details
+)
