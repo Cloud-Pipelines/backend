@@ -51,5 +51,8 @@ def get_user_details(request: fastapi.Request):
 
 
 api_router.setup_routes(
-    app=app, db_engine=db_engine, user_details_getter=get_user_details
+    app=app,
+    db_engine=db_engine,
+    user_details_getter=get_user_details,
+    default_component_library_owner_username=ADMIN_USER_NAME,
 )

@@ -9,6 +9,7 @@ from sqlalchemy import orm
 
 from . import api_server_sql
 from . import backend_types_sql
+from . import component_library_api_server as components_api
 from . import errors
 
 if typing.TYPE_CHECKING:
@@ -70,6 +71,7 @@ def setup_routes(
     container_launcher_for_log_streaming: (
         "launcher_interfaces.ContainerTaskLauncher | None"
     ) = None,
+    default_component_library_owner_username: str = "admin",
 ):
     # We request `app: fastapi.FastAPI` instead of just returning the router
     # because we want to add exception handler which is only supported for `FastAPI`.
@@ -115,12 +117,36 @@ def setup_routes(
         ensure_admin_user_dependency = None
         ensure_user_can_write_dependency = None
 
+    def inject_user_name(func: typing.Callable, parameter_name: str = "user_name"):
+        if get_user_name_dependency:
+            # The `user_name` parameter value now comes from a Dependency (instead of request)
+            return add_parameter_annotation_metadata(
+                func,
+                parameter_name=parameter_name,
+                annotation_metadata=get_user_name_dependency,
+            )
+        else:
+            return func
+
     def get_session():
         with orm.Session(autocommit=False, autoflush=False, bind=db_engine) as session:
             yield session
 
     def create_db_and_tables():
         backend_types_sql._TableBase.metadata.create_all(db_engine)
+
+        # The default library must be initialized here, not when adding the Component Library routes.
+        # Otherwize the tables won't yet exist when initialization is performed.
+        session_factory = lambda: orm.Session(
+            autocommit=False, autoflush=False, bind=db_engine
+        )
+        component_library_service = components_api.ComponentLibraryService(
+            session_factory=session_factory
+        )
+        component_library_service._initialize_empty_default_library_if_missing(
+            published_by=default_component_library_owner_username
+        )
+
 
     artifact_service = api_server_sql.ArtifactNodesApiService_Sql()
     execution_service = api_server_sql.ExecutionNodesApiService_Sql()
@@ -307,6 +333,58 @@ def setup_routes(
         dependencies=[fastapi.Depends(check_not_readonly)],
         **default_config,
     )(pipeline_run_cancel)
+
+    ### Component library routes
+
+    session_factory = lambda: orm.Session(
+        autocommit=False, autoflush=False, bind=db_engine
+    )
+
+    component_service = components_api.ComponentService(session_factory=session_factory)
+    published_component_service = components_api.PublishedComponentService(
+        session_factory=session_factory
+    )
+    component_library_service = components_api.ComponentLibraryService(
+        session_factory=session_factory
+    )
+    user_service = components_api.UserService(session_factory=session_factory)
+
+    router.get("/api/components/{digest}", tags=["components"], **default_config)(
+        component_service.get
+    )
+    # router.post("/api/components/", tags=["components"])(component_service.add_from_text)
+
+    router.get("/api/published_components/", tags=["components"], **default_config)(
+        published_component_service.list
+    )
+    router.post("/api/published_components/", tags=["components"], **default_config)(
+        inject_user_name(published_component_service.publish)
+    )
+    router.put(
+        "/api/published_components/{digest}", tags=["components"], **default_config
+    )(inject_user_name(published_component_service.update))
+
+    router.get("/api/component_libraries/", tags=["components"], **default_config)(
+        component_library_service.list
+    )
+    router.get("/api/component_libraries/{id}", tags=["components"], **default_config)(
+        component_library_service.get
+    )
+    router.post("/api/component_libraries/", tags=["components"], **default_config)(
+        inject_user_name(component_library_service.create)
+    )
+    router.put("/api/component_libraries/{id}", tags=["components"], **default_config)(
+        inject_user_name(component_library_service.replace)
+    )
+
+    router.get(
+        "/api/component_library_pins/me/", tags=["components"], **default_config
+    )(inject_user_name(user_service.get_component_library_pins))
+    router.put(
+        "/api/component_library_pins/me/", tags=["components"], **default_config
+    )(inject_user_name(user_service.set_component_library_pins))
+
+    ### Admin routes
 
     @router.put(
         "/api/admin/set_read_only_model",
