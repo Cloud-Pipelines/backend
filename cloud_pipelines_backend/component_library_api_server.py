@@ -187,6 +187,7 @@ class PublishedComponentService:
         *,
         include_deprecated: bool = False,
         name_substring: str | None = None,
+        published_by_substring: str | None = None,
     ) -> ListPublishedComponentsResponse:
         # TODO: Implement paging
         # TODO: Implement filtering/search
@@ -197,6 +198,12 @@ class PublishedComponentService:
         if name_substring:
             query = query.filter(
                 PublishedComponentRow.name.icontains(name_substring, autoescape=True)
+            )
+        if published_by_substring:
+            query = query.filter(
+                PublishedComponentRow.published_by.icontains(
+                    published_by_substring, autoescape=True
+                )
             )
         with self._session_factory() as session:
             published_component_rows = session.scalars(query).all()
