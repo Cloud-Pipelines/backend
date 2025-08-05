@@ -763,7 +763,7 @@ class LaunchedKubernetesContainer(interfaces.LaunchedContainer):
             _request_timeout=launcher._request_timeout,
         )
         for line in stream:
-            yield line
+            yield str(line) + "\n"
 
     def __str__(self) -> str:
         import pprint
