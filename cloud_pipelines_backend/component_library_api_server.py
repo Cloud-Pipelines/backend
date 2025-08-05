@@ -215,10 +215,9 @@ class PublishedComponentService:
         # Actual: Use Text else try to get text by Digest.
         # We currently don't load from URL for security reasons.
 
+        component_text = component_ref.text
         digest = None
-        if component_ref.text:
-            component_text = component_ref.text
-            component_spec = load_component_spec_from_text_and_validate(component_text)
+        if component_text:
             component_response = component_service.add_from_text(
                 component_text=component_text
             )
@@ -231,11 +230,14 @@ class PublishedComponentService:
                 )
                 if existing_component_row:
                     # Component with such digest already exists int he DB.
+                    component_text = existing_component_row.text
                     digest = component_ref.digest
-            if not digest:
+            if not (digest and component_text):
                 raise ValueError(
                     f"Component text is missing, cannot get component by digest (or digest is missing). Currently we cannot get component by URL for security reasons (you can get text from url yourself before publishing)."
                 )
+
+        component_spec = load_component_spec_from_text_and_validate(component_text)
 
         with self._session_factory() as session:
             # Checking for existence
