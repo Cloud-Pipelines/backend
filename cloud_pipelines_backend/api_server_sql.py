@@ -693,17 +693,9 @@ class ExecutionNodesApiService_Sql:
                     raise RuntimeError(
                         f"Container execution {container_execution.id=} does not have log_uri. Impossible."
                     )
-                if not container_execution.log_uri.startswith("gs://"):
-                    raise NotImplementedError(
-                        f"Only logs in Google Cloud Storage are supported. But got {container_execution.log_uri=}."
-                    )
-                from google.cloud import storage
-
-                gcs_client = storage.Client()
-                blob = storage.Blob.from_string(
-                    container_execution.log_uri, client=gcs_client
+                log_text = _read_container_execution_log_from_uri(
+                    container_execution.log_uri
                 )
-                log_text = blob.download_as_text()
             except:
                 # Do not raise exception if the execution is in SYSTEM_ERROR state
                 # We want to return the system error exception.
@@ -753,13 +745,35 @@ class ExecutionNodesApiService_Sql:
             raise ApiServiceError(
                 f"Execution does not have container launcher information."
             )
-
-        launched_container = (
-            container_launcher.deserialize_launched_container_from_dict(
-                container_execution.launcher_data
+        if container_execution.status == bts.ContainerExecutionStatus.RUNNING:
+            launched_container = (
+                container_launcher.deserialize_launched_container_from_dict(
+                    container_execution.launcher_data
+                )
             )
+            return launched_container.stream_log_lines()
+        else:
+            if not container_execution.log_uri:
+                raise RuntimeError(
+                    f"Container execution {container_execution.id=} does not have log_uri. Impossible."
+                )
+            log_text = _read_container_execution_log_from_uri(
+                container_execution.log_uri
+            )
+            return (line + "\n" for line in log_text.split("\n"))
+
+
+def _read_container_execution_log_from_uri(log_uri: str):
+    if not log_uri.startswith("gs://"):
+        raise NotImplementedError(
+            f"Only logs in Google Cloud Storage are supported. But got {log_uri=}."
         )
-        return launched_container.stream_log_lines()
+    from google.cloud import storage
+
+    gcs_client = storage.Client()
+    blob = storage.Blob.from_string(log_uri, client=gcs_client)
+    log_text = blob.download_as_text()
+    return log_text
 
 
 @dataclasses.dataclass(kw_only=True)
