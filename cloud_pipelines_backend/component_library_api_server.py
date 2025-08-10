@@ -685,8 +685,8 @@ class UserService:
     @staticmethod
     def _get_default_pinned_library_ids_for_user_name(user_name: str):
         return [
-            DEFAULT_COMPONENT_LIBRARY_ID,
             _get_component_library_id_for_user_name(user_name),
+            DEFAULT_COMPONENT_LIBRARY_ID,
         ]
 
     # ! User name must be set from Authentication and not exposed as an API parameter
