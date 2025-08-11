@@ -509,7 +509,11 @@ class ComponentLibraryService:
             )
 
     def _prepare_new_library_and_publish_components(
-        self, *, library: ComponentLibrary, user_name: str
+        self,
+        *,
+        library: ComponentLibrary,
+        user_name: str,
+        publish_components: bool = True,
     ) -> ComponentLibraryRow:
         # Making copy, because we'll mutate the library (remove the text and spec)
         library = copy.deepcopy(library)
@@ -524,13 +528,15 @@ class ComponentLibraryService:
             if not component_ref.text:
                 # TODO: Support publishing component from URL
                 raise ValueError(f"Currently every library component must have text.")
-            try:
-                publish_response = service.publish(
-                    component_ref=component_ref, user_name=user_name
-                )
-                digest = publish_response.digest
-            except errors.ItemAlreadyExistsError:
-                digest = calculate_digest_for_component_text(component_ref.text)
+            digest = calculate_digest_for_component_text(component_ref.text)
+            if publish_components:
+                try:
+                    publish_response = service.publish(
+                        component_ref=component_ref, user_name=user_name
+                    )
+                    digest = publish_response.digest
+                except errors.ItemAlreadyExistsError:
+                    pass
             # Extract the component name:
             spec = component_ref.spec
             if not spec:
@@ -567,6 +573,7 @@ class ComponentLibraryService:
         component_library_row = self._prepare_new_library_and_publish_components(
             library=library,
             user_name=user_name,
+            publish_components=not hide_from_search,
         )
         component_library_row.hide_from_search = hide_from_search
         with self._session_factory() as session:
@@ -626,10 +633,13 @@ class ComponentLibraryService:
                 raise errors.PermissionError(
                     f"User {user_name} does not have permission to update the component library {id}. {owners=}"
                 )
+            if hide_from_search is not None:
+                component_library_row.hide_from_search = hide_from_search
             new_component_library_row = (
                 self._prepare_new_library_and_publish_components(
                     library=library,
                     user_name=user_name,
+                    publish_components=not component_library_row.hide_from_search,
                 )
             )
             # Should we auto-deprecate components that were removed from the library?
@@ -641,8 +651,6 @@ class ComponentLibraryService:
             component_library_row.component_count = (
                 new_component_library_row.component_count
             )
-            if hide_from_search is not None:
-                component_library_row.hide_from_search = hide_from_search
             response = ComponentLibraryResponse.from_db(component_library_row)
             session.commit()
             return response
