@@ -29,6 +29,10 @@ _T = typing.TypeVar("_T")
 PIPELINE_RUN_CREATED_BY_ANNOTATION_KEY = (
     "cloud-pipelines.net/orchestration/pipeline_run.created_by"
 )
+EXECUTION_NODE_ID_ANNOTATION_KEY = "cloud-pipelines.net/orchestration/execution_node.id"
+CONTAINER_EXECUTION_ID_ANNOTATION_KEY = (
+    "cloud-pipelines.net/orchestration/container_execution.id"
+)
 
 
 class OrchestratorError(RuntimeError):
@@ -439,6 +443,10 @@ class OrchestratorService_Sql:
 
         full_annotations[PIPELINE_RUN_CREATED_BY_ANNOTATION_KEY] = (
             pipeline_run.created_by
+        )
+        full_annotations[EXECUTION_NODE_ID_ANNOTATION_KEY] = execution.id
+        full_annotations[CONTAINER_EXECUTION_ID_ANNOTATION_KEY] = (
+            container_execution_uuid
         )
 
         try:
