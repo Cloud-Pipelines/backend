@@ -436,6 +436,9 @@ class OrchestratorService_Sql:
         full_annotations[common_annotations.PIPELINE_RUN_CREATED_BY_ANNOTATION_KEY] = (
             pipeline_run.created_by
         )
+        full_annotations[common_annotations.PIPELINE_RUN_ID_ANNOTATION_KEY] = (
+            pipeline_run.id
+        )
         full_annotations[common_annotations.EXECUTION_NODE_ID_ANNOTATION_KEY] = (
             execution.id
         )
