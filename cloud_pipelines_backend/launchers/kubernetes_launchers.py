@@ -362,7 +362,7 @@ class _KubernetesContainerLauncher(
         core_api_client = k8s_client_lib.CoreV1Api(api_client=self._api_client)
         try:
             created_pod: k8s_client_lib.V1Pod = core_api_client.create_namespaced_pod(
-                namespace=self._namespace,
+                namespace=pod.metadata.namespace or self._namespace,
                 body=pod,
                 _request_timeout=self._request_timeout,
             )
