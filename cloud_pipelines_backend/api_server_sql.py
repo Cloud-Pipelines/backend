@@ -10,7 +10,8 @@ if typing.TYPE_CHECKING:
     from .launchers import interfaces as launcher_interfaces
 
 
-_logger = logging.getLogger(__name__)
+# _logger = logging.getLogger(__name__)
+_logger = logging.getLogger("uvicorn.error")
 
 T = typing.TypeVar("T")
 
@@ -130,11 +131,14 @@ class PipelineRunsApiService_Sql:
             raise errors.PermissionError(
                 f"The pipeline run {id} was started by {pipeline_run.created_by} and cannot be terminated by {terminated_by}"
             )
+        _logger.debug(f"Cancelling run {id}")
+        _logger.info(f"Cancelling run {id}")
         # Marking the pipeline run for termination
         pipeline_run.extra_data = pipeline_run_extra_data = (
             pipeline_run.extra_data or {}
         )
         pipeline_run_extra_data["desired_state"] = "TERMINATED"
+        _logger.info(f"Cancelling run {id}: {pipeline_run.id=}; {pipeline_run.extra_data=}")
 
         # Marking all running executions belonging to the run for termination
         running_execution_nodes = [
@@ -153,6 +157,8 @@ class PipelineRunsApiService_Sql:
                 execution_node.extra_data or {}
             )
             execution_extra_data["desired_state"] = "TERMINATED"
+            _logger.info(f"Cancelling run {id}: {execution_node=}")
+        _logger.info(f"Cancelling run {id}: {session.dirty=}")
         session.commit()
 
     # Note: This method must be last to not shadow the "list" type
