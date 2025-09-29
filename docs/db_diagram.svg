@@ -1,0 +1,477 @@
+<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'   width='816' height='1102' viewBox='0 0 816 1102' >
+  <script type='text/ecmascript'>
+  <![CDATA[
+  function hghl(el) { for ( var i in el ){ var elem = document.getElementById(el[i]); if ( elem != null ) elem.setAttribute('class','highlight');  }  }
+  function uhghl(el) { for ( var i in el ){ var elem = document.getElementById(el[i]); if ( elem != null ) elem.setAttribute('class','unhighlight'); }  } 
+  ]]>
+  </script> 
+
+<style type='text/css'>
+  text                { fill:#242528; font-weight:normal;stroke:#2a2b2c;stroke-width:.1px; font-family: Candara, 'Segoe UI', Dialog; font-size:13px; }
+  text.tableHeader    { fill:#576b57; font-weight:normal;stroke:#2a2b2c;stroke-width:.1px; font-family: Candara, 'Segoe UI', Dialog; font-size:13px;  font-weight: bold; }
+  a text:hover        { font-weight:500; }
+  text.highlight      { font-weight:500; }
+  text.white          { fill:#ffffff; }
+  text.colType        { fill:#b3b3b3; }
+  text.relName        { fill:#9c9a9a; stroke-width:0; }
+  text.dataType       { stroke:0; font-size:12px; text-anchor: end;}
+  text.legendTitle    { fill:#2b3b64; font-weight:500; }
+  text.legendSubTitle { fill:#616161; font-size:12px; }
+  path, circle        { stroke:#888581; stroke-width:1.5; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+  .filled             { fill:#7f7971; }
+  path.virtual        { stroke:#71527b; }
+  path.logo           { fill:#fbeac0;fill-opacity:1;stroke-width:0.3;stroke:#222222; }
+  path.dotted         { stroke-dasharray:3,3; }
+  path.unhighlight    { stroke-width:12; opacity:0; pointer-events:all; }
+  path.highlight      { stroke-width:2; stroke:#1a3b69; opacity:1; pointer-events:all; }
+  path.line           { stroke-width:10; stroke-linecap:round; stroke-linejoin:round; }
+  rect.entity         { fill:#ffffff; stroke-width:1; shape-rendering:crispEdges; }
+  line.delim          { stroke-width:1px; shape-rendering:crispEdges; }
+  text.callout        { fill:#201a10; font-family: Candara, 'Segoe UI', Dialog; font-size:14px; }
+  rect.callout        { fill:url(#calloutGradient); stroke-width:1px; stroke:#d0cec3; }
+  rect.shape          { stroke:#bebdbd; stroke-width:0.5; }
+  rect.legend         { fill:url(#legendGradient); stroke-width:1px; stroke:#d6dbe4; }
+  text.grp            { fill:#b1b1b1; }
+  rect.grp            { stroke:#919171; stroke-width:1; opacity:0.24; }
+  path.bgPattern      { fill:none;stroke-width:0.6;stroke:#e5e9ee; }
+  path.eval           { fill:#efefef;fill-opacity:1;stroke-width:0.6;stroke:#e9e9e9; }
+  rect.palpable       { fill:#fffbe5; }
+</style>
+<defs>
+  <pattern id="layoutBgA" width="60" height="34.64" patternUnits="userSpaceOnUse">
+    <rect x="0" y="0"  width="60" height="34.64" fill="#f7f7f8" />
+  </pattern>
+  <linearGradient id='legendGradient' x1='0%' y1='0%' x2='100%' y2='0%'>
+    <stop offset='0%' stop-color='#eef5fc' />
+    <stop offset='100%' stop-color='#f7fafe' />
+  </linearGradient>
+  <!-- https://norbat.de/svg-pattern-3d-webmuster/ -->
+  <linearGradient id='calloutGradient' x1='0%' y1='0%' x2='100%' y2='0%'>
+    <stop offset='0%' stop-color='#efeae1dd' />
+    <stop offset='100%' stop-color='#e8e9eadd' />
+  </linearGradient>
+  <filter id="shadow">
+    <feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#a0a0a0" flood-opacity="0.4" />
+  </filter>
+  <!--
+  <filter id='shadow2' width='120%' height='120%'>
+    <feOffset result='offOut' in='SourceGraphic' dx='0' dy='0' />
+    <feColorMatrix result='matrixOut' in='offOut'
+                   values='0.5 0 0 0 0 0 0.5 0 0 0 0 0 0.5 0 0 0 0 0 0.5 0' />
+    <feGaussianBlur result='blurOut' in='matrixOut' stdDeviation='3' />
+    <feBlend in='SourceGraphic' in2='blurOut' />
+  </filter>
+  -->
+  <filter id='fkShadow' height='130%'>
+    <feGaussianBlur in='SourceAlpha' stdDeviation='1.5'/> <!-- stdDeviation is how much to blur -->
+    <feOffset dx='1.2' dy='1.2' result='offsetblur'/> <!-- how much to offset -->
+    <feMerge>
+      <feMergeNode/> <!-- this contains the offset blurred image -->
+      <feMergeNode in='SourceGraphic'/> <!-- this contains the element that the filter is applied to -->
+    </feMerge>
+  </filter>
+  <symbol id='calloutArrowDown' >
+    <path d='M 0,0 L 8,12 L 16,0 z' style='fill:#f8f6d1;stroke:none; filter: url(#shadow);' />
+    <path d='M 0,0 L 8,12 L 16,0' style='stroke:#bebdbd; stroke-width:0.5;' />
+  </symbol>
+  <symbol id='calloutArrowUp' >
+    <path d='M 0,16 L 8,4 L 16,16 z' style='fill:#ffffff; stroke:none; filter: url(#shadow);' />
+    <path d='M 0,16 L 8,4 L 16,16' style='stroke:#bebdbd; stroke-width:0.5;' />
+  </symbol>
+  <symbol id='pk' width="13" height="13">
+    <g>
+      <path style='fill:#cfc43f;stroke:#906b25;stroke-width:0.2;stroke-linecap:round;stroke-linejoin:round;'
+            d='M 9.3678877,3.5695485 C 9.1030218,3.2729386 9.0796382,2.7628519 9.3396185,2.4517097 9.5449651,2.1956495 9.9040386,2.0980533 10.199638,2.2169415 10.533525,2.3415459 10.775153,2.706942 10.750675,3.0842709 10.737029,3.3980003 10.541153,3.699122 10.258248,3.8066067 9.966649,3.9250429 9.6169668,3.8418805 9.4008073,3.6062324 9.3894892,3.5943518 9.3785264,3.582104 9.3678886,3.5695487 z M 11.226617,6.9916004 C 11.888137,6.3548946 12.293488,5.4172188 12.311087,4.442353 12.378144,2.7379364 11.248678,1.0541269 9.7322318,0.44767357 8.3887112,-0.1280313 6.7865012,0.26822889 5.8918395,1.4007929 5.080823,2.3839145 4.9336815,3.8452096 5.3635544,5.101615 L 4.3670905,5.315913 C 4.0664984,5.3682645 4.0967703,5.6316724 4.2574957,5.8208829 L 4.9124,6.5655244 4.1543436,7.2512357 3.2136002,7.2163506 3.1674775,8.5586827 2.0406832,8.5086512 1.5965306,8.9299953 1.5471661,10.179833 0.75616674,10.195223 0.2112857,10.758575 0.15354288,11.735988 0.07199052,12.765553 c 0.36440953,0.238225 0.79006967,0.195492 1.44938278,-0.02675 L 6.3033562,8.1282037 6.8217102,8.6765688 C 6.9985465,8.8799427 7.3003699,8.7497574 7.358381,8.5016252 L 7.4938877,7.5084164 c 0.8537488,0.3985387 1.8303125,0.4711541 2.6851793,0.1427713 0.393927,-0.1407258 0.746858,-0.3701772 1.04755,-0.6595873 z'/>
+      <path d='M 6.8014948,6.3102123 0.15369063,13.024481 0.21560535,12.141962 6.0062342,6.2683782 z'
+            style='fill:#ffe5a5;fill-opacity:1;stroke:#906b25;stroke-width:0.06912433;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:3.00300009'/>
+    </g>
+  </symbol>
+  <symbol id='idx1' width="13" height="13">
+    <g transform='scale(0.99)'>
+      <rect width='4' height='4' x='7' y='1' style='fill:#ffff3f;stroke:#b48333;stroke-width:0.6;' ry='0.83'/>
+      <rect width='4' height='4' x='1' y='7' style='fill:#ffff3f;stroke:#b48333;stroke-width:0.6;' ry='0.832'/>
+      <rect width='4' height='4' x='7' y='7' style='fill:#ffff3f;stroke:#b48333;stroke-width:0.6;' ry='0.832'/>
+    </g>
+  </symbol>
+  <symbol id='idx2' width="13" height="13">
+    <g transform='scale(0.99)'>
+      <rect width='4' height='3' x='6' y='1' style='fill:#7fc8e9;stroke:#2f6f8c;stroke-width:0.6;' ry='0.83'/>
+      <rect width='7' height='3' x='3' y='6' style='fill:#7fc8e9;stroke:#2f6f8c;stroke-width:0.6;' ry='0.832'/>
+    </g>
+  </symbol>
+  <symbol id='unq' width="13" height="13">
+    <g transform='scale(0.99)'>
+      <rect style='fill:none;stroke:#7e4d31;stroke-width:0.71934468;stroke-linecap:round;stroke-linejoin:round;'
+            width='2.29' height='8.43' x='7.48' y='-0.76' ry='1.14' transform='matrix(0.701,0.713,-0.727,0.685,0,0)' />
+      <path style='fill:white;stroke:#858585;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;'
+            d='m 26.04,8.64 a 4.13,4.13 0 1 1 -8.26,0 4.13,4.13 0 1 1 8.26,0 z'
+            transform='matrix(1.025,0,0,0.987,-14.690,-3.862)' />
+      <text x='5.4' y='7.2' style='font-size:7px;fill:#655c59;'>U</text>
+    </g>
+  </symbol>
+  <symbol id='idx' width="13" height="13">
+    <g transform='scale(0.99)'>
+      <rect style='fill:none;stroke:#7e4d31;stroke-width:0.71934468;stroke-linecap:round;stroke-linejoin:round;'
+            width='2.29' height='8.0' x='7.48' y='-0.76' ry='1.14' transform='matrix(0.701,0.713,-0.727,0.685,0,0)' />
+      <path style='fill:#f7f7f8;stroke:#858585;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;'
+            d='m 26.04,8.64 a 4.13,4.13 0 1 1 -8.26,0 4.13,4.13 0 1 1 8.26,0 z'
+            transform='matrix(1.025,0,0,0.987,-14.690,-3.862)' />
+    </g>
+  </symbol>
+  <symbol id='fk' width="13" height="13">
+    <g transform='scale(0.87)'>
+      <path style='fill:#71c4c6;stroke:#71c4c6;stroke-width:0.5;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;'
+            d='M 12.48,0.33 7.07,0.89 9.067,2.974 0.329,11.731 1.073,12.597 9.811,3.841 11.77,5.78 z' />
+    </g>
+  </symbol>
+  <symbol id='ref' width="13" height="13">
+    <g transform='scale(0.87)'>
+      <path style='fill:#cfc43f;stroke:#cfc43f;stroke-width:0.5;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;'
+            d='M 0.10,12.70 5.31,12.15 3.40,10.06 11.82,1.32 11.11,0.45 2.68,9.19 0.80,7.24 z'/>
+    </g>
+  </symbol>
+  <symbol id='flag0' width="13" height="13">
+    <g transform='scale(0.92)'>
+      <path style='fill:#b7d0f6;stroke:#000000;stroke-width:0.5;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;'
+            d='M 0.12,12.67 0.16,7.22 C 2.59,7.22 4.13,8.78 9.22,4.22 5.68,4.98 2.53,4.50 0.09,1.80 z'/>
+    </g>
+  </symbol>
+  <symbol id='flag1' width="13" height="13">
+    <g transform='scale(0.92)'>
+      <path style='fill:#f4a393;stroke:#000000;stroke-width:0.5;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;'
+            d='M 0.12,12.67 0.16,7.22 C 2.59,7.22 4.13,8.78 9.22,4.22 5.68,4.98 2.53,4.50 0.09,1.80 z'/>
+    </g>
+  </symbol>
+  <symbol id='flag2' width="13" height="13">
+    <g transform='scale(0.92)'>
+      <path style='fill:#77ec8b;stroke:#000000;stroke-width:0.5;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;'
+            d='M 0.12,12.67 0.16,7.22 C 2.59,7.22 4.13,8.78 9.22,4.22 5.68,4.98 2.53,4.50 0.09,1.80 z'/>
+    </g>
+  </symbol>
+  <symbol id='nn' width="3" height="3">
+    <path style='stroke:#da897b;stroke-width:0.5;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;'
+          d='M 0,0 3,3 M 0,3 3,0 z'/>
+  </symbol>
+  <symbol id='virtual' width="16" height="16">
+    <g transform='scale(0.99)'>
+      <circle cx='8' cy='8' r='5' style='#9e9185;stroke-width:1;fill:transparent' />
+      <path style='stroke:#5394b8;stroke-width:1.5;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;'
+            d='M 2.71,5.8 Q-2.12,-2.20 9.15,6.52 Q 17.92,17.67 10.53,13.56'/>
+      <path style='stroke:#5394b8;stroke-width:1.5;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;'
+            d='M 5.47,13.64 Q -1.82,17.24 6.65,6.78 Q 17.88,-1.36 13.51,5.42'/>
+    </g>
+  </symbol>
+  <symbol id='leaf' width="16" height="16">
+    <g transform='scale(0.99)'>
+      <path style='stroke:#7290ab9d;stroke-width:1;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;'
+            d='M .7,0 L.7,9.2 L3.85,9.2'/>
+      <text x="4" y="13" style='fill:#b0880d;stroke-width:0;font-size:14px;'>{ }</text>
+    </g>
+  </symbol>
+  <symbol id='leafArray' width="16" height="16">
+    <g transform='scale(0.99)'>
+      <path style='stroke:#7290ab9d;stroke-width:1;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;'
+            d='M .7,0 L.7,9.2 L3.85,9.2'/>
+      <text x="4" y="13" style='fill:#b0880d;stroke-width:0;font-size:14px;'>[ ]</text>
+    </g>
+  </symbol>
+  <symbol id='view' width="13" height="13">
+    <g transform='scale(0.99)'>
+      <line x1='12' y1='6' x2='19' y2='0' stroke='black' stroke-width='0.5' />
+      <line x1='0' y1='6' x2='7' y2='0' stroke='black' stroke-width='0.5' />
+      <circle cx='3' cy='6' r='3' fill='#f9ebbc' stroke='black' stroke-width='0.5'/>
+      <circle cx='10' cy='6' r='3' fill='#f9ebbc' stroke='black' stroke-width='0.5'/>
+    </g>
+  </symbol>
+  <symbol id='logo' width="100" height="100" style="filter:url(#shadow);">
+    <path style='stroke:none;fill:#5d5d5d' d='M2.41,6.80 17.39,0.35 26.83,7.21 28.32,24.45 12.62,29.77 1.74,23.96'/>
+    <path style='stroke:none;fill:#efefef' d='M 2.21, 6.45  9.36, 3.49  9.42,11.63  2.04,14.42'/>
+    <path style='stroke:none;fill:#efefef' d='M10.23, 3.14 17.39, 0.17 17.68, 8.59 10.29,11.28'/>
+    <path style='stroke:none;fill:#d2d2d2' d='M17.44, 0.17 21.59, 3.55 22.36,11.43 17.76,8.63'/>
+    <path style='stroke:none;fill:#d2d2d2' d='M22.67, 4.33 26.98, 7.06 27.65,14.77 23.20,11.77'/>
+    <path style='stroke:none;fill:#efefef' d='M1.89,15.58  9.39,12.65  9.48,21.14  1.57,24.10'/>
+    <path style='stroke:none;fill:#17afde' d='M10.38,12.36 17.70, 9.51 18.11,18.37 10.32 20.96'/>
+    <path style='stroke:none;fill:#1389ad' d='M17.73, 9.59 22.41,12.47 22.82,21.14 18.05,18.34'/>
+    <path style='stroke:none;fill:#d2d2d2' d='M23.26,12.94 27.62,15.70 28.42,24.54 23.69,21.60'/>
+    <path style='stroke:none;fill:#828282' d='M1.57,24.19  9.45,21.22 14.30,24.40  6.80,26.80'/>
+    <path style='stroke:none;fill:#0c485c' d='M10.47,20.90 18.11,18.32 22.82,21.19 15.20,23.81'/>
+    <path style='stroke:none;fill:#828282' d='M23.69,21.63 28.32,24.65 20.87,27.07 15.84,24.30'/>
+    <path style='stroke:none;fill:#828282' d='M14.94,24.68 19.80,27.41 12.59,29.97  7.73,27.21'/>
+  </symbol>
+    <symbol id="bulb" viewBox="0 0 24 24">
+      <rect x="10" y="16" width="4" height="6" rx="1.5" ry="1.5" style='fill:#c4ae85;stroke:#c3ad44;stroke-width:0.3;stroke-linecap:round;stroke-linejoin:round;filter:url(#shadow);' />
+      <circle cx="12" cy="12" r="5" style='fill:#fff9c1;stroke:#c3ad44;stroke-width:0.3;filter:url(#shadow);'/>
+    </symbol>
+</defs>
+
+<defs>  <marker id='ZeroMore' viewBox='0 0 8.00 8.00' refX='4.00' refY='4.00' markerWidth='8.00' markerHeight='8.00' orient='auto-start-reverse'>
+    <path d='M 2.00,4.00 L 4.00,4.00 M 6.00,4.00 L 8.00,4.00 z' style='stroke-width:1;'/>
+    <path d='M 8.00,0.00 L 4.00,4.00 L 8.00,8.00' style='stroke-width:1;'/>
+    <path d='M 0.00,4.00 L 8.00,4.00 z' style='stroke-width:1;'/>
+  </marker>
+  <marker id='ZeroOne' viewBox='0 0 8.00 8.00' refX='4.00' refY='4.00' markerWidth='8.00' markerHeight='8.00' orient='auto-start-reverse'>
+    <path d='M 2.00,4.00 L 4.00,4.00 M 6.00,4.00 L 8.00,4.00 z' style='stroke-width:1;'/>
+  </marker>
+  <marker id='OneMore' viewBox='0 0 8.00 8.00' refX='4.00' refY='4.00' markerWidth='8.00' markerHeight='8.00' orient='auto-start-reverse'>
+    <path d='M 4.00,4.00 L 8.00,4.00 z' style='stroke-width:1;'/>
+    <path d='M 8.00,0.00 L 4.00,4.00 L 8.00,8.00' style='stroke-width:1;'/>
+    <path d='M 0.00,4.00 L 8.00,4.00 z' style='stroke-width:1;'/>
+  </marker>
+  <marker id='One' viewBox='0 0 8.00 8.00' refX='4.00' refY='4.00' markerWidth='8.00' markerHeight='8.00' orient='auto-start-reverse'>
+    <path d='M 4.00,4.00 L 8.00,4.00 z' style='stroke-width:1;'/>
+  </marker>
+  <marker id='Range' viewBox='0 0 8.00 8.00' refX='4.00' refY='4.00' markerWidth='8.00' markerHeight='8.00' orient='auto-start-reverse'>
+    <path d='M 4.00,4.00 L 8.00,4.00 z' style='stroke-width:1;'/>
+  </marker>
+  <marker id='Arrow' viewBox='0 0 8.00 8.00' refX='4.00' refY='4.00' markerWidth='8.00' markerHeight='8.00' orient='auto-start-reverse'>
+    <path d='M 4.000,4.000 L 8.000,4.000 L 4.000,0.000 L 8.000,4.000 L 4.000,8.000' style='stroke-width:1;'/>
+  </marker>
+  <linearGradient id='tbg_BED3F4' x1='0%' y1='0%' x2='100%' y2='0%' >
+     <stop offset='0%' stop-color='#C5D4EE' /> 
+     <stop offset='100%' stop-color='#EBEFF7' /> 
+  </linearGradient>
+  <linearGradient id='tln_BED3F4' x1='0%' y1='0%' x2='100%' y2='0%' >
+     <stop offset='0%' stop-color='#D7DEEB' /> 
+     <stop offset='20%' stop-color='#6882AE' /> 
+     <stop offset='100%' stop-color='#D7DEEB' /> 
+  </linearGradient>
+</defs>
+
+<!-- == Shape Colors == -->
+<!-- == Desktop == -->
+<rect x='0' y='0' width='816' height='1102' rx='8' ry='8' style='fill:url(#layoutBgA); stroke:#ccc; stroke-width:.7px; cursor:move;' />
+<rect x='1' y='1' width='814' height='1100' rx='8' ry='8' style='fill:url();' />
+
+<g transform='translate(0,-20)'>
+<!-- == Group 'artifact_data' == -->
+<rect class='grp' style='fill:#F2F6FF;stroke:#90A4C5' x='32' y='45' width='752' height='882' rx='8' ry='8' />
+<text x='44' y='61' style='fill:#90A4C5;'>artifact&#95;data</text>
+<!-- == Fk 'artifact_node_FK_artifact_node execution_node' == -->
+<path id='artifact_node_FK_artifact_node execution_node'  onmouseover="hghl(['artifact_node_FK_artifact_node execution_node','Default.artifact_node.producer_execution_id','Default.execution_node.id'])" onmouseout="uhghl(['artifact_node_FK_artifact_node execution_node','Default.artifact_node.producer_execution_id','Default.execution_node.id'])" transform='translate(8,0)' class='unhighlight' d='M 560,448L 272,448' >
+	<title>&#x1F517;  Foreign Key FK_artifact_node execution_node
+artifact_node ref execution_node ( producer_execution_id -&gt; id )</title>
+</path>
+<path transform='translate(8,0)' marker-start='url(#ZeroMore)' marker-end='url(#One)'  class='dotted '  d='M 560,448L 272,448' ><title>&#x1F517;  Foreign Key FK_artifact_node execution_node
+artifact_node ref execution_node ( producer_execution_id -&gt; id )</title></path>
+<text x='440' y='443' transform='rotate(0 440,443)' class='relName'>producer&#95;execution&#95;id</text>
+<!-- == Fk 'artifact_node_FK_artifact_node artifact_data' == -->
+<path id='artifact_node_FK_artifact_node artifact_data'  onmouseover="hghl(['artifact_node_FK_artifact_node artifact_data','Default.artifact_node.artifact_data_id','Default.artifact_data.id'])" onmouseout="uhghl(['artifact_node_FK_artifact_node artifact_data','Default.artifact_node.artifact_data_id','Default.artifact_data.id'])" transform='translate(8,0)' class='unhighlight' d='M 592,560L 592,640' >
+	<title>&#x1F517;  Foreign Key FK_artifact_node artifact_data
+artifact_node ref artifact_data ( artifact_data_id -&gt; id )</title>
+</path>
+<path transform='translate(8,0)' marker-start='url(#ZeroMore)' marker-end='url(#One)'  class='dotted '  d='M 592,560L 592,640' ><title>&#x1F517;  Foreign Key FK_artifact_node artifact_data
+artifact_node ref artifact_data ( artifact_data_id -&gt; id )</title></path>
+<text x='604' y='561' transform='rotate(90 604,561)' class='relName'>artifact&#95;data&#95;id</text>
+<!-- == Fk 'execution_ancestor_FK_execution_ancestor execution_node' == -->
+<path id='execution_ancestor_FK_execution_ancestor execution_node'  onmouseover="hghl(['execution_ancestor_FK_execution_ancestor execution_node','Default.execution_ancestor.ancestor_execution_id','Default.execution_node.id'])" onmouseout="uhghl(['execution_ancestor_FK_execution_ancestor execution_node','Default.execution_ancestor.ancestor_execution_id','Default.execution_node.id'])" transform='translate(8,0)' class='unhighlight' d='M 240,224L 240,352' >
+	<title>&#x1F517;  Foreign Key FK_execution_ancestor execution_node
+execution_ancestor ref execution_node ( ancestor_execution_id -&gt; id )</title>
+</path>
+<path transform='translate(8,0)' marker-start='url(#OneMore)' marker-end='url(#One)'    d='M 240,224L 240,352' ><title>&#x1F517;  Foreign Key FK_execution_ancestor execution_node
+execution_ancestor ref execution_node ( ancestor_execution_id -&gt; id )</title></path>
+<text x='252' y='225' transform='rotate(90 252,225)' class='relName'>ancestor&#95;execution&#95;id</text>
+<!-- == Fk 'execution_ancestor_FK_execution_ancestor execution_node_001' == -->
+<path id='execution_ancestor_FK_execution_ancestor execution_node_001'  onmouseover="hghl(['execution_ancestor_FK_execution_ancestor execution_node_001','Default.execution_ancestor.execution_id','Default.execution_node.id'])" onmouseout="uhghl(['execution_ancestor_FK_execution_ancestor execution_node_001','Default.execution_ancestor.execution_id','Default.execution_node.id'])" transform='translate(8,0)' class='unhighlight' d='M 256,224L 256,352' >
+	<title>&#x1F517;  Foreign Key FK_execution_ancestor execution_node_001
+execution_ancestor ref execution_node ( execution_id -&gt; id )</title>
+</path>
+<path transform='translate(8,0)' marker-start='url(#OneMore)' marker-end='url(#One)'    d='M 256,224L 256,352' ><title>&#x1F517;  Foreign Key FK_execution_ancestor execution_node_001
+execution_ancestor ref execution_node ( execution_id -&gt; id )</title></path>
+<text x='268' y='225' transform='rotate(90 268,225)' class='relName'>execution&#95;id</text>
+<!-- == Fk 'execution_node_FK_execution_node execution_node' == -->
+<path id='execution_node_FK_execution_node execution_node'  onmouseover="hghl(['execution_node_FK_execution_node execution_node','Default.execution_node.parent_execution_id','Default.execution_node.id'])" onmouseout="uhghl(['execution_node_FK_execution_node execution_node','Default.execution_node.parent_execution_id','Default.execution_node.id'])" transform='translate(8,0)' class='unhighlight' d='M 272,544L 280,544Q 288,544 288,552L 288,568Q 288,576 280,576L 264,576Q 256,576 256,568L 256,560' >
+	<title>&#x1F517;  Foreign Key FK_execution_node execution_node
+execution_node ref execution_node ( parent_execution_id -&gt; id )</title>
+</path>
+<path transform='translate(8,0)' marker-start='url(#ZeroMore)' marker-end='url(#One)'  class='dotted '  d='M 272,544L 280,544Q 288,544 288,552L 288,568Q 288,576 280,576L 264,576Q 256,576 256,568L 256,560' ><title>&#x1F517;  Foreign Key FK_execution_node execution_node
+execution_node ref execution_node ( parent_execution_id -&gt; id )</title></path>
+<text x='281' y='539' transform='rotate(0 281,539)' class='relName'>parent&#95;execution&#95;id</text>
+<!-- == Fk 'execution_node_FK_execution_node container_execution' == -->
+<path id='execution_node_FK_execution_node container_execution'  onmouseover="hghl(['execution_node_FK_execution_node container_execution','Default.execution_node.container_execution_id','Default.container_execution.id'])" onmouseout="uhghl(['execution_node_FK_execution_node container_execution','Default.execution_node.container_execution_id','Default.container_execution.id'])" transform='translate(8,0)' class='unhighlight' d='M 64,560L 64,640' >
+	<title>&#x1F517;  Foreign Key FK_execution_node container_execution
+execution_node ref container_execution ( container_execution_id -&gt; id )</title>
+</path>
+<path transform='translate(8,0)' marker-start='url(#ZeroMore)' marker-end='url(#One)'  class='dotted '  d='M 64,560L 64,640' ><title>&#x1F517;  Foreign Key FK_execution_node container_execution
+execution_node ref container_execution ( container_execution_id -&gt; id )</title></path>
+<text x='76' y='561' transform='rotate(90 76,561)' class='relName'>container&#95;execution&#95;id</text>
+<!-- == Fk 'input_artifact_link_FK_input_artifact_link execution_node' == -->
+<path id='input_artifact_link_FK_input_artifact_link execution_node'  onmouseover="hghl(['input_artifact_link_FK_input_artifact_link execution_node','Default.input_artifact_link.execution_id','Default.execution_node.id'])" onmouseout="uhghl(['input_artifact_link_FK_input_artifact_link execution_node','Default.input_artifact_link.execution_id','Default.execution_node.id'])" transform='translate(8,0)' class='unhighlight' d='M 336,384L 272,384' >
+	<title>&#x1F517;  Foreign Key FK_input_artifact_link execution_node
+input_artifact_link ref execution_node ( execution_id -&gt; id )</title>
+</path>
+<path transform='translate(8,0)' marker-start='url(#OneMore)' marker-end='url(#One)'    d='M 336,384L 272,384' ><title>&#x1F517;  Foreign Key FK_input_artifact_link execution_node
+input_artifact_link ref execution_node ( execution_id -&gt; id )</title></path>
+<text x='274' y='379' transform='rotate(0 274,379)' class='relName'>execution&#95;id</text>
+<!-- == Fk 'input_artifact_link_FK_input_artifact_link artifact_node' == -->
+<path id='input_artifact_link_FK_input_artifact_link artifact_node'  onmouseover="hghl(['input_artifact_link_FK_input_artifact_link artifact_node','Default.input_artifact_link.artifact_id','Default.artifact_node.id'])" onmouseout="uhghl(['input_artifact_link_FK_input_artifact_link artifact_node','Default.input_artifact_link.artifact_id','Default.artifact_node.id'])" transform='translate(8,0)' class='unhighlight' d='M 480,368L 560,368' >
+	<title>&#x1F517;  Foreign Key FK_input_artifact_link artifact_node
+input_artifact_link ref artifact_node ( artifact_id -&gt; id )</title>
+</path>
+<path transform='translate(8,0)' marker-start='url(#OneMore)' marker-end='url(#One)'    d='M 480,368L 560,368' ><title>&#x1F517;  Foreign Key FK_input_artifact_link artifact_node
+input_artifact_link ref artifact_node ( artifact_id -&gt; id )</title></path>
+<text x='489' y='363' transform='rotate(0 489,363)' class='relName'>artifact&#95;id</text>
+<!-- == Fk 'output_artifact_link_FK_output_artifact_link execution_node' == -->
+<path id='output_artifact_link_FK_output_artifact_link execution_node'  onmouseover="hghl(['output_artifact_link_FK_output_artifact_link execution_node','Default.output_artifact_link.execution_id','Default.execution_node.id'])" onmouseout="uhghl(['output_artifact_link_FK_output_artifact_link execution_node','Default.output_artifact_link.execution_id','Default.execution_node.id'])" transform='translate(8,0)' class='unhighlight' d='M 336,480L 272,480' >
+	<title>&#x1F517;  Foreign Key FK_output_artifact_link execution_node
+output_artifact_link ref execution_node ( execution_id -&gt; id )</title>
+</path>
+<path transform='translate(8,0)' marker-start='url(#OneMore)' marker-end='url(#One)'    d='M 336,480L 272,480' ><title>&#x1F517;  Foreign Key FK_output_artifact_link execution_node
+output_artifact_link ref execution_node ( execution_id -&gt; id )</title></path>
+<text x='274' y='475' transform='rotate(0 274,475)' class='relName'>execution&#95;id</text>
+<!-- == Fk 'output_artifact_link_FK_output_artifact_link artifact_node' == -->
+<path id='output_artifact_link_FK_output_artifact_link artifact_node'  onmouseover="hghl(['output_artifact_link_FK_output_artifact_link artifact_node','Default.output_artifact_link.artifact_id','Default.artifact_node.id'])" onmouseout="uhghl(['output_artifact_link_FK_output_artifact_link artifact_node','Default.output_artifact_link.artifact_id','Default.artifact_node.id'])" transform='translate(8,0)' class='unhighlight' d='M 496,496L 560,496' >
+	<title>&#x1F517;  Foreign Key FK_output_artifact_link artifact_node
+output_artifact_link ref artifact_node ( artifact_id -&gt; id )</title>
+</path>
+<path transform='translate(8,0)' marker-start='url(#OneMore)' marker-end='url(#One)'    d='M 496,496L 560,496' ><title>&#x1F517;  Foreign Key FK_output_artifact_link artifact_node
+output_artifact_link ref artifact_node ( artifact_id -&gt; id )</title></path>
+<text x='505' y='491' transform='rotate(0 505,491)' class='relName'>artifact&#95;id</text>
+<!-- == Fk 'pipeline_run_FK_pipeline_run execution_node' == -->
+<path id='pipeline_run_FK_pipeline_run execution_node'  onmouseover="hghl(['pipeline_run_FK_pipeline_run execution_node','Default.pipeline_run.root_execution_id','Default.execution_node.id'])" onmouseout="uhghl(['pipeline_run_FK_pipeline_run execution_node','Default.pipeline_run.root_execution_id','Default.execution_node.id'])" transform='translate(8,0)' class='unhighlight' d='M 64,256L 64,352' >
+	<title>&#x1F517;  Foreign Key FK_pipeline_run execution_node
+pipeline_run ref execution_node ( root_execution_id -&gt; id )</title>
+</path>
+<path transform='translate(8,0)' marker-start='url(#OneMore)' marker-end='url(#One)'    d='M 64,256L 64,352' ><title>&#x1F517;  Foreign Key FK_pipeline_run execution_node
+pipeline_run ref execution_node ( root_execution_id -&gt; id )</title></path>
+<text x='76' y='257' transform='rotate(90 76,257)' class='relName'>root&#95;execution&#95;id</text>
+<!-- == Table 'artifact_data' == -->
+<rect id='depict_Default&#46;artifact&#95;data' class='entity' style='stroke:none;' x='576' y='648' width='96' height='192' rx='4' ry='4' />
+<path d='M 576 676 L 576 652 Q 576 648 580 648 L 668 648 Q 672 648 672 652 L 672 676 L576 676 ' style='fill:url(#tbg_BED3F4);stroke:none;' />
+<rect class='entity' x='576' y='648' width='96' height='192' rx='4' ry='4' style='fill:none;stroke:#D5D7DC'/>
+<text id='depict&#45;Default&#46;artifact&#95;data' x='582' y='667' class='tableHeader' style='fill:#27416D;'>artifact&#95;data</text><title>Table Default.artifact_data</title>  <use x='578' y='685' xlink:href='#nn'/><use x='578' y='684' xlink:href='#pk'><title>&#x1F511;  Pk pk_artifact_data ( id ) </title></use><text id='Default&#46;artifact&#95;data&#46;id' x='595' y='695' onmouseover="hghl(['artifact_node_FK_artifact_node artifact_data','Default.artifact_node.artifact_data_id'])" onmouseout="uhghl(['artifact_node_FK_artifact_node artifact_data','Default.artifact_node.artifact_data_id'])" class='colPk'>id</text><title>&#10697;  id
+     * integer
+ &#8601; artifact_node( id )</title><a xlink:href='#Default.artifact_data.id'><use x='660' y='684' xlink:href='#ref'/><title>&#x1F517;  Referred by artifact_node ( artifact_data_id -&gt; id ) </title></a>
+  <use x='578' y='701' xlink:href='#nn'/><text id='Default&#46;artifact&#95;data&#46;total&#95;size' x='595' y='711'>total&#95;size</text><title>&#10697;  total_size
+     * integer</title><text x='669' y='708' text-anchor='end' class='colType'>&#35;</text>  <use x='578' y='717' xlink:href='#nn'/><text id='Default&#46;artifact&#95;data&#46;is&#95;dir' x='595' y='727'>is&#95;dir</text><title>&#10697;  is_dir
+     * numeric</title><text x='669' y='724' text-anchor='end' class='colType'>&#35;</text>  <use x='578' y='733' xlink:href='#nn'/><text id='Default&#46;artifact&#95;data&#46;hash' x='595' y='743'>hash</text><title>&#10697;  hash
+     * text</title><text x='669' y='740' text-anchor='end' class='colType'>t</text>  <text id='Default&#46;artifact&#95;data&#46;uri' x='595' y='759'>uri</text><title>&#10697;  uri
+     text</title><text x='669' y='756' text-anchor='end' class='colType'>t</text>  <text id='Default&#46;artifact&#95;data&#46;value' x='595' y='775'>value</text><title>&#10697;  value
+     text</title><text x='669' y='772' text-anchor='end' class='colType'>t</text>  <text id='Default&#46;artifact&#95;data&#46;created&#95;at' x='595' y='791'>created&#95;at</text><title>&#10697;  created_at
+     datetime</title><text x='669' y='788' text-anchor='end' class='colType'>d</text>  <text id='Default&#46;artifact&#95;data&#46;deleted&#95;at' x='595' y='807'>deleted&#95;at</text><title>&#10697;  deleted_at
+     datetime</title><text x='669' y='804' text-anchor='end' class='colType'>d</text>  <text id='Default&#46;artifact&#95;data&#46;extra&#95;data' x='595' y='823'>extra&#95;data</text><title>&#10697;  extra_data
+     enum</title><text x='669' y='820' text-anchor='end' class='colType'>t</text>
+<!-- == Table 'artifact_node' == -->
+<rect id='depict_Default&#46;artifact&#95;node' class='entity' style='stroke:none;' x='576' y='360' width='192' height='192' rx='4' ry='4' />
+<path d='M 576 388 L 576 364 Q 576 360 580 360 L 764 360 Q 768 360 768 364 L 768 388 L576 388 ' style='fill:url(#tbg_BED3F4);stroke:none;' />
+<rect class='entity' x='576' y='360' width='192' height='192' rx='4' ry='4' style='fill:none;stroke:#D5D7DC'/>
+<text id='depict&#45;Default&#46;artifact&#95;node' x='628' y='379' class='tableHeader' style='fill:#27416D;'>artifact&#95;node</text><title>Table Default.artifact_node</title>  <use x='578' y='397' xlink:href='#nn'/><use x='578' y='396' xlink:href='#pk'><title>&#x1F511;  Pk pk_artifact_node ( id ) </title></use><text id='Default&#46;artifact&#95;node&#46;id' x='595' y='407' onmouseover="hghl(['input_artifact_link_FK_input_artifact_link artifact_node','Default.input_artifact_link.artifact_id','output_artifact_link_FK_output_artifact_link artifact_node','Default.output_artifact_link.artifact_id'])" onmouseout="uhghl(['input_artifact_link_FK_input_artifact_link artifact_node','Default.input_artifact_link.artifact_id','output_artifact_link_FK_output_artifact_link artifact_node','Default.output_artifact_link.artifact_id'])" class='colPk'>id</text><title>&#10697;  id
+     * integer
+ &#8601; input_artifact_link( id )
+ &#8601; output_artifact_link( id )</title><a xlink:href='#Default.artifact_node.id'><use x='756' y='396' xlink:href='#ref'/><title>&#x1F517;  Referred by input_artifact_link ( artifact_id -&gt; id ) 
+Referred by output_artifact_link ( artifact_id -&gt; id ) </title></a>
+  <use x='578' y='413' xlink:href='#nn'/><text id='Default&#46;artifact&#95;node&#46;had&#95;data&#95;in&#95;past' x='595' y='423'>had&#95;data&#95;in&#95;past</text><title>&#10697;  had_data_in_past
+     * numeric</title><text x='765' y='420' text-anchor='end' class='colType'>&#35;</text>  <use x='578' y='429' xlink:href='#nn'/><text id='Default&#46;artifact&#95;node&#46;may&#95;have&#95;data&#95;in&#95;future' x='595' y='439'>may&#95;have&#95;data&#95;in&#95;future</text><title>&#10697;  may_have_data_in_future
+     * numeric</title><text x='765' y='436' text-anchor='end' class='colType'>&#35;</text>  <text id='Default&#46;artifact&#95;node&#46;type&#95;name' x='595' y='455'>type&#95;name</text><title>&#10697;  type_name
+     text</title><text x='765' y='452' text-anchor='end' class='colType'>t</text>  <text id='Default&#46;artifact&#95;node&#46;type&#95;properties' x='595' y='471'>type&#95;properties</text><title>&#10697;  type_properties
+     enum</title><text x='765' y='468' text-anchor='end' class='colType'>t</text>  <text id='Default&#46;artifact&#95;node&#46;producer&#95;execution&#95;id' x='595' y='487' onmouseover="hghl(['artifact_node_FK_artifact_node execution_node','Default.execution_node.id'])" onmouseout="uhghl(['artifact_node_FK_artifact_node execution_node','Default.execution_node.id'])">producer&#95;execution&#95;id</text><title>&#10697;  producer_execution_id
+     integer
+ &#8599; artifact_node( id )</title><a xlink:href='#Default.artifact_node.producer_execution_id'><use x='756' y='476' xlink:href='#fk'/><title>&#x1F517;  References execution_node ( producer_execution_id -&gt; id ) </title></a>
+  <text id='Default&#46;artifact&#95;node&#46;producer&#95;output&#95;name' x='595' y='503'>producer&#95;output&#95;name</text><title>&#10697;  producer_output_name
+     text</title><text x='765' y='500' text-anchor='end' class='colType'>t</text>  <text id='Default&#46;artifact&#95;node&#46;artifact&#95;data&#95;id' x='595' y='519' onmouseover="hghl(['artifact_node_FK_artifact_node artifact_data','Default.artifact_data.id'])" onmouseout="uhghl(['artifact_node_FK_artifact_node artifact_data','Default.artifact_data.id'])">artifact&#95;data&#95;id</text><title>&#10697;  artifact_data_id
+     integer
+ &#8599; artifact_node( id )</title><a xlink:href='#Default.artifact_node.artifact_data_id'><use x='756' y='508' xlink:href='#fk'/><title>&#x1F517;  References artifact_data ( artifact_data_id -&gt; id ) </title></a>
+  <text id='Default&#46;artifact&#95;node&#46;extra&#95;data' x='595' y='535'>extra&#95;data</text><title>&#10697;  extra_data
+     enum</title><text x='765' y='532' text-anchor='end' class='colType'>t</text>
+<!-- == Table 'container_execution' == -->
+<rect id='depict_Default&#46;container&#95;execution' class='entity' style='stroke:none;' x='48' y='648' width='192' height='256' rx='4' ry='4' />
+<path d='M 48 676 L 48 652 Q 48 648 52 648 L 236 648 Q 240 648 240 652 L 240 676 L48 676 ' style='fill:url(#tbg_BED3F4);stroke:none;' />
+<rect class='entity' x='48' y='648' width='192' height='256' rx='4' ry='4' style='fill:none;stroke:#D5D7DC'/>
+<text id='depict&#45;Default&#46;container&#95;execution' x='79' y='667' class='tableHeader' style='fill:#27416D;'>container&#95;execution</text><title>Table Default.container_execution</title>  <use x='50' y='685' xlink:href='#nn'/><use x='50' y='684' xlink:href='#pk'><title>&#x1F511;  Pk pk_container_execution ( id ) </title></use><text id='Default&#46;container&#95;execution&#46;id' x='67' y='695' onmouseover="hghl(['execution_node_FK_execution_node container_execution','Default.execution_node.container_execution_id'])" onmouseout="uhghl(['execution_node_FK_execution_node container_execution','Default.execution_node.container_execution_id'])" class='colPk'>id</text><title>&#10697;  id
+     * integer
+ &#8601; execution_node( id )</title><a xlink:href='#Default.container_execution.id'><use x='228' y='684' xlink:href='#ref'/><title>&#x1F517;  Referred by execution_node ( container_execution_id -&gt; id ) </title></a>
+  <use x='50' y='701' xlink:href='#nn'/><text id='Default&#46;container&#95;execution&#46;status' x='67' y='711'>status</text><title>&#10697;  status
+     * text</title><text x='237' y='708' text-anchor='end' class='colType'>t</text>  <text id='Default&#46;container&#95;execution&#46;last&#95;processed&#95;at' x='67' y='727'>last&#95;processed&#95;at</text><title>&#10697;  last_processed_at
+     datetime</title><text x='237' y='724' text-anchor='end' class='colType'>d</text>  <text id='Default&#46;container&#95;execution&#46;created&#95;at' x='67' y='743'>created&#95;at</text><title>&#10697;  created_at
+     datetime</title><text x='237' y='740' text-anchor='end' class='colType'>d</text>  <text id='Default&#46;container&#95;execution&#46;updated&#95;at' x='67' y='759'>updated&#95;at</text><title>&#10697;  updated_at
+     datetime</title><text x='237' y='756' text-anchor='end' class='colType'>d</text>  <text id='Default&#46;container&#95;execution&#46;started&#95;at' x='67' y='775'>started&#95;at</text><title>&#10697;  started_at
+     datetime</title><text x='237' y='772' text-anchor='end' class='colType'>d</text>  <text id='Default&#46;container&#95;execution&#46;ended&#95;at' x='67' y='791'>ended&#95;at</text><title>&#10697;  ended_at
+     datetime</title><text x='237' y='788' text-anchor='end' class='colType'>d</text>  <text id='Default&#46;container&#95;execution&#46;exit&#95;code' x='67' y='807'>exit&#95;code</text><title>&#10697;  exit_code
+     integer</title><text x='237' y='804' text-anchor='end' class='colType'>&#35;</text>  <text id='Default&#46;container&#95;execution&#46;launcher&#95;data' x='67' y='823'>launcher&#95;data</text><title>&#10697;  launcher_data
+     enum</title><text x='237' y='820' text-anchor='end' class='colType'>t</text>  <text id='Default&#46;container&#95;execution&#46;input&#95;artifact&#95;data&#95;map' x='67' y='839'>input&#95;artifact&#95;data&#95;map</text><title>&#10697;  input_artifact_data_map
+     enum</title><text x='237' y='836' text-anchor='end' class='colType'>t</text>  <text id='Default&#46;container&#95;execution&#46;output&#95;artifact&#95;data&#95;map' x='67' y='855'>output&#95;artifact&#95;data&#95;map</text><title>&#10697;  output_artifact_data_map
+     enum</title><text x='237' y='852' text-anchor='end' class='colType'>t</text>  <text id='Default&#46;container&#95;execution&#46;log&#95;uri' x='67' y='871'>log&#95;uri</text><title>&#10697;  log_uri
+     text</title><text x='237' y='868' text-anchor='end' class='colType'>t</text>  <text id='Default&#46;container&#95;execution&#46;extra&#95;data' x='67' y='887'>extra&#95;data</text><title>&#10697;  extra_data
+     enum</title><text x='237' y='884' text-anchor='end' class='colType'>t</text>
+<!-- == Table 'execution_ancestor' == -->
+<rect id='depict_Default&#46;execution&#95;ancestor' class='entity' style='stroke:none;' x='224' y='136' width='176' height='80' rx='4' ry='4' />
+<path d='M 224 164 L 224 140 Q 224 136 228 136 L 396 136 Q 400 136 400 140 L 400 164 L224 164 ' style='fill:url(#tbg_BED3F4);stroke:none;' />
+<rect class='entity' x='224' y='136' width='176' height='80' rx='4' ry='4' style='fill:none;stroke:#D5D7DC'/>
+<text id='depict&#45;Default&#46;execution&#95;ancestor' x='250' y='155' class='tableHeader' style='fill:#27416D;'>execution&#95;ancestor</text><title>Table Default.execution_ancestor</title>  <use x='226' y='173' xlink:href='#nn'/><use x='226' y='172' xlink:href='#pk'><title>&#x1F511;  Pk pk_execution_ancestor ( ancestor_execution_id, execution_id ) </title></use><text id='Default&#46;execution&#95;ancestor&#46;ancestor&#95;execution&#95;id' x='243' y='183' onmouseover="hghl(['execution_ancestor_FK_execution_ancestor execution_node','Default.execution_node.id'])" onmouseout="uhghl(['execution_ancestor_FK_execution_ancestor execution_node','Default.execution_node.id'])" class='colPk'>ancestor&#95;execution&#95;id</text><title>&#10697;  ancestor_execution_id
+     * integer
+ &#8599; execution_ancestor( id )</title><a xlink:href='#Default.execution_ancestor.ancestor_execution_id'><use x='388' y='172' xlink:href='#fk'/><title>&#x1F517;  References execution_node ( ancestor_execution_id -&gt; id ) </title></a>
+  <use x='226' y='189' xlink:href='#nn'/><use x='226' y='188' xlink:href='#pk'><title>&#x1F511;  Pk pk_execution_ancestor ( ancestor_execution_id, execution_id ) </title></use><text id='Default&#46;execution&#95;ancestor&#46;execution&#95;id' x='243' y='199' onmouseover="hghl(['execution_ancestor_FK_execution_ancestor execution_node_001','Default.execution_node.id'])" onmouseout="uhghl(['execution_ancestor_FK_execution_ancestor execution_node_001','Default.execution_node.id'])" class='colPk'>execution&#95;id</text><title>&#10697;  execution_id
+     * integer
+ &#8599; execution_ancestor( id )</title><a xlink:href='#Default.execution_ancestor.execution_id'><use x='388' y='188' xlink:href='#fk'/><title>&#x1F517;  References execution_node ( execution_id -&gt; id ) </title></a>
+
+<!-- == Table 'execution_node' == -->
+<rect id='depict_Default&#46;execution&#95;node' class='entity' style='stroke:none;' x='48' y='360' width='224' height='192' rx='4' ry='4' />
+<path d='M 48 388 L 48 364 Q 48 360 52 360 L 268 360 Q 272 360 272 364 L 272 388 L48 388 ' style='fill:url(#tbg_BED3F4);stroke:none;' />
+<rect class='entity' x='48' y='360' width='224' height='192' rx='4' ry='4' style='fill:none;stroke:#D5D7DC'/>
+<text id='depict&#45;Default&#46;execution&#95;node' x='108' y='379' class='tableHeader' style='fill:#27416D;'>execution&#95;node</text><title>Table Default.execution_node</title>  <use x='50' y='397' xlink:href='#nn'/><use x='50' y='396' xlink:href='#pk'><title>&#x1F511;  Pk pk_execution_node ( id ) </title></use><text id='Default&#46;execution&#95;node&#46;id' x='67' y='407' onmouseover="hghl(['artifact_node_FK_artifact_node execution_node','Default.artifact_node.producer_execution_id','execution_ancestor_FK_execution_ancestor execution_node','Default.execution_ancestor.ancestor_execution_id','execution_ancestor_FK_execution_ancestor execution_node_001','Default.execution_ancestor.execution_id','execution_node_FK_execution_node execution_node','Default.execution_node.parent_execution_id','input_artifact_link_FK_input_artifact_link execution_node','Default.input_artifact_link.execution_id','output_artifact_link_FK_output_artifact_link execution_node','Default.output_artifact_link.execution_id','pipeline_run_FK_pipeline_run execution_node','Default.pipeline_run.root_execution_id'])" onmouseout="uhghl(['artifact_node_FK_artifact_node execution_node','Default.artifact_node.producer_execution_id','execution_ancestor_FK_execution_ancestor execution_node','Default.execution_ancestor.ancestor_execution_id','execution_ancestor_FK_execution_ancestor execution_node_001','Default.execution_ancestor.execution_id','execution_node_FK_execution_node execution_node','Default.execution_node.parent_execution_id','input_artifact_link_FK_input_artifact_link execution_node','Default.input_artifact_link.execution_id','output_artifact_link_FK_output_artifact_link execution_node','Default.output_artifact_link.execution_id','pipeline_run_FK_pipeline_run execution_node','Default.pipeline_run.root_execution_id'])" class='colPk'>id</text><title>&#10697;  id
+     * integer
+ &#8601; artifact_node( id )
+ &#8601; execution_ancestor( id )
+ &#8601; execution_ancestor( id )
+ &#8601; execution_node( id )
+ &#8601; input_artifact_link( id )
+ &#8601; output_artifact_link( id )
+ &#8601; pipeline_run( id )</title><a xlink:href='#Default.execution_node.id'><use x='260' y='396' xlink:href='#ref'/><title>&#x1F517;  Referred by artifact_node ( producer_execution_id -&gt; id ) 
+Referred by execution_ancestor ( ancestor_execution_id -&gt; id ) 
+Referred by execution_ancestor ( execution_id -&gt; id ) 
+Referred by execution_node ( parent_execution_id -&gt; id ) 
+Referred by input_artifact_link ( execution_id -&gt; id ) 
+Referred by output_artifact_link ( execution_id -&gt; id ) 
+Referred by pipeline_run ( root_execution_id -&gt; id ) </title></a>
+  <use x='50' y='413' xlink:href='#nn'/><text id='Default&#46;execution&#95;node&#46;task&#95;spec' x='67' y='423'>task&#95;spec</text><title>&#10697;  task_spec
+     * enum</title><text x='269' y='420' text-anchor='end' class='colType'>t</text>  <text id='Default&#46;execution&#95;node&#46;constant&#95;arguments' x='67' y='439'>constant&#95;arguments</text><title>&#10697;  constant_arguments
+     enum</title><text x='269' y='436' text-anchor='end' class='colType'>t</text>  <text id='Default&#46;execution&#95;node&#46;parent&#95;execution&#95;id' x='67' y='455' onmouseover="hghl(['execution_node_FK_execution_node execution_node','Default.execution_node.id'])" onmouseout="uhghl(['execution_node_FK_execution_node execution_node','Default.execution_node.id'])">parent&#95;execution&#95;id</text><title>&#10697;  parent_execution_id
+     integer
+ &#8599; execution_node( id )</title><a xlink:href='#Default.execution_node.parent_execution_id'><use x='260' y='444' xlink:href='#fk'/><title>&#x1F517;  References execution_node ( parent_execution_id -&gt; id ) </title></a>
+  <text id='Default&#46;execution&#95;node&#46;task&#95;id&#95;in&#95;parent&#95;execution' x='67' y='471'>task&#95;id&#95;in&#95;parent&#95;execution</text><title>&#10697;  task_id_in_parent_execution
+     text</title><text x='269' y='468' text-anchor='end' class='colType'>t</text>  <text id='Default&#46;execution&#95;node&#46;container&#95;execution&#95;id' x='67' y='487' onmouseover="hghl(['execution_node_FK_execution_node container_execution','Default.container_execution.id'])" onmouseout="uhghl(['execution_node_FK_execution_node container_execution','Default.container_execution.id'])">container&#95;execution&#95;id</text><title>&#10697;  container_execution_id
+     integer
+ &#8599; execution_node( id )</title><a xlink:href='#Default.execution_node.container_execution_id'><use x='260' y='476' xlink:href='#fk'/><title>&#x1F517;  References container_execution ( container_execution_id -&gt; id ) </title></a>
+  <text id='Default&#46;execution&#95;node&#46;container&#95;execution&#95;status' x='67' y='503'>container&#95;execution&#95;status</text><title>&#10697;  container_execution_status
+     text</title><text x='269' y='500' text-anchor='end' class='colType'>t</text>  <text id='Default&#46;execution&#95;node&#46;container&#95;execution&#95;cache&#95;key' x='67' y='519'>container&#95;execution&#95;cache&#95;key</text><title>&#10697;  container_execution_cache_key
+     text</title><text x='269' y='516' text-anchor='end' class='colType'>t</text>  <text id='Default&#46;execution&#95;node&#46;extra&#95;data' x='67' y='535'>extra&#95;data</text><title>&#10697;  extra_data
+     enum</title><text x='269' y='532' text-anchor='end' class='colType'>t</text>
+<!-- == Table 'input_artifact_link' == -->
+<rect id='depict_Default&#46;input&#95;artifact&#95;link' class='entity' style='stroke:none;' x='352' y='328' width='128' height='96' rx='4' ry='4' />
+<path d='M 352 356 L 352 332 Q 352 328 356 328 L 476 328 Q 480 328 480 332 L 480 356 L352 356 ' style='fill:url(#tbg_BED3F4);stroke:none;' />
+<rect class='entity' x='352' y='328' width='128' height='96' rx='4' ry='4' style='fill:none;stroke:#D5D7DC'/>
+<text id='depict&#45;Default&#46;input&#95;artifact&#95;link' x='357' y='347' class='tableHeader' style='fill:#27416D;'>input&#95;artifact&#95;link</text><title>Table Default.input_artifact_link</title>  <use x='354' y='365' xlink:href='#nn'/><use x='354' y='364' xlink:href='#pk'><title>&#x1F511;  Pk pk_input_artifact_link ( execution_id, input_name ) </title></use><text id='Default&#46;input&#95;artifact&#95;link&#46;execution&#95;id' x='371' y='375' onmouseover="hghl(['input_artifact_link_FK_input_artifact_link execution_node','Default.execution_node.id'])" onmouseout="uhghl(['input_artifact_link_FK_input_artifact_link execution_node','Default.execution_node.id'])" class='colPk'>execution&#95;id</text><title>&#10697;  execution_id
+     * integer
+ &#8599; input_artifact_link( id )</title><a xlink:href='#Default.input_artifact_link.execution_id'><use x='468' y='364' xlink:href='#fk'/><title>&#x1F517;  References execution_node ( execution_id -&gt; id ) </title></a>
+  <use x='354' y='381' xlink:href='#nn'/><use x='354' y='380' xlink:href='#pk'><title>&#x1F511;  Pk pk_input_artifact_link ( execution_id, input_name ) </title></use><text id='Default&#46;input&#95;artifact&#95;link&#46;input&#95;name' x='371' y='391' class='colPk'>input&#95;name</text><title>&#10697;  input_name
+     * text</title><text x='477' y='388' text-anchor='end' class='colType'>t</text>  <use x='354' y='397' xlink:href='#nn'/><text id='Default&#46;input&#95;artifact&#95;link&#46;artifact&#95;id' x='371' y='407' onmouseover="hghl(['input_artifact_link_FK_input_artifact_link artifact_node','Default.artifact_node.id'])" onmouseout="uhghl(['input_artifact_link_FK_input_artifact_link artifact_node','Default.artifact_node.id'])">artifact&#95;id</text><title>&#10697;  artifact_id
+     * integer
+ &#8599; input_artifact_link( id )</title><a xlink:href='#Default.input_artifact_link.artifact_id'><use x='468' y='396' xlink:href='#fk'/><title>&#x1F517;  References artifact_node ( artifact_id -&gt; id ) </title></a>
+
+<!-- == Table 'output_artifact_link' == -->
+<rect id='depict_Default&#46;output&#95;artifact&#95;link' class='entity' style='stroke:none;' x='352' y='472' width='144' height='96' rx='4' ry='4' />
+<path d='M 352 500 L 352 476 Q 352 472 356 472 L 492 472 Q 496 472 496 476 L 496 500 L352 500 ' style='fill:url(#tbg_BED3F4);stroke:none;' />
+<rect class='entity' x='352' y='472' width='144' height='96' rx='4' ry='4' style='fill:none;stroke:#D5D7DC'/>
+<text id='depict&#45;Default&#46;output&#95;artifact&#95;link' x='361' y='491' class='tableHeader' style='fill:#27416D;'>output&#95;artifact&#95;link</text><title>Table Default.output_artifact_link</title>  <use x='354' y='509' xlink:href='#nn'/><use x='354' y='508' xlink:href='#pk'><title>&#x1F511;  Pk pk_output_artifact_link ( execution_id, output_name ) </title></use><text id='Default&#46;output&#95;artifact&#95;link&#46;execution&#95;id' x='371' y='519' onmouseover="hghl(['output_artifact_link_FK_output_artifact_link execution_node','Default.execution_node.id'])" onmouseout="uhghl(['output_artifact_link_FK_output_artifact_link execution_node','Default.execution_node.id'])" class='colPk'>execution&#95;id</text><title>&#10697;  execution_id
+     * integer
+ &#8599; output_artifact_link( id )</title><a xlink:href='#Default.output_artifact_link.execution_id'><use x='484' y='508' xlink:href='#fk'/><title>&#x1F517;  References execution_node ( execution_id -&gt; id ) </title></a>
+  <use x='354' y='525' xlink:href='#nn'/><use x='354' y='524' xlink:href='#pk'><title>&#x1F511;  Pk pk_output_artifact_link ( execution_id, output_name ) </title></use><text id='Default&#46;output&#95;artifact&#95;link&#46;output&#95;name' x='371' y='535' class='colPk'>output&#95;name</text><title>&#10697;  output_name
+     * text</title><text x='493' y='532' text-anchor='end' class='colType'>t</text>  <use x='354' y='541' xlink:href='#nn'/><text id='Default&#46;output&#95;artifact&#95;link&#46;artifact&#95;id' x='371' y='551' onmouseover="hghl(['output_artifact_link_FK_output_artifact_link artifact_node','Default.artifact_node.id'])" onmouseout="uhghl(['output_artifact_link_FK_output_artifact_link artifact_node','Default.artifact_node.id'])">artifact&#95;id</text><title>&#10697;  artifact_id
+     * integer
+ &#8599; output_artifact_link( id )</title><a xlink:href='#Default.output_artifact_link.artifact_id'><use x='484' y='540' xlink:href='#fk'/><title>&#x1F517;  References artifact_node ( artifact_id -&gt; id ) </title></a>
+
+<!-- == Table 'pipeline_run' == -->
+<rect id='depict_Default&#46;pipeline&#95;run' class='entity' style='stroke:none;' x='48' y='72' width='144' height='176' rx='4' ry='4' />
+<path d='M 48 100 L 48 76 Q 48 72 52 72 L 188 72 Q 192 72 192 76 L 192 100 L48 100 ' style='fill:url(#tbg_BED3F4);stroke:none;' />
+<rect class='entity' x='48' y='72' width='144' height='176' rx='4' ry='4' style='fill:none;stroke:#D5D7DC'/>
+<text id='depict&#45;Default&#46;pipeline&#95;run' x='79' y='91' class='tableHeader' style='fill:#27416D;'>pipeline&#95;run</text><title>Table Default.pipeline_run</title>  <use x='50' y='109' xlink:href='#nn'/><use x='50' y='108' xlink:href='#pk'><title>&#x1F511;  Pk pk_pipeline_run ( id ) </title></use><text id='Default&#46;pipeline&#95;run&#46;id' x='67' y='119' class='colPk'>id</text><title>&#10697;  id
+     * integer</title><text x='189' y='116' text-anchor='end' class='colType'>&#35;</text>  <use x='50' y='125' xlink:href='#nn'/><text id='Default&#46;pipeline&#95;run&#46;root&#95;execution&#95;id' x='67' y='135' onmouseover="hghl(['pipeline_run_FK_pipeline_run execution_node','Default.execution_node.id'])" onmouseout="uhghl(['pipeline_run_FK_pipeline_run execution_node','Default.execution_node.id'])">root&#95;execution&#95;id</text><title>&#10697;  root_execution_id
+     * integer
+ &#8599; pipeline_run( id )</title><a xlink:href='#Default.pipeline_run.root_execution_id'><use x='180' y='124' xlink:href='#fk'/><title>&#x1F517;  References execution_node ( root_execution_id -&gt; id ) </title></a>
+  <text id='Default&#46;pipeline&#95;run&#46;annotations' x='67' y='151'>annotations</text><title>&#10697;  annotations
+     enum</title><text x='189' y='148' text-anchor='end' class='colType'>t</text>  <text id='Default&#46;pipeline&#95;run&#46;created&#95;by' x='67' y='167'>created&#95;by</text><title>&#10697;  created_by
+     text</title><text x='189' y='164' text-anchor='end' class='colType'>t</text>  <text id='Default&#46;pipeline&#95;run&#46;created&#95;at' x='67' y='183'>created&#95;at</text><title>&#10697;  created_at
+     datetime</title><text x='189' y='180' text-anchor='end' class='colType'>d</text>  <text id='Default&#46;pipeline&#95;run&#46;updated&#95;at' x='67' y='199'>updated&#95;at</text><title>&#10697;  updated_at
+     datetime</title><text x='189' y='196' text-anchor='end' class='colType'>d</text>  <text id='Default&#46;pipeline&#95;run&#46;parent&#95;pipeline&#95;id' x='67' y='215'>parent&#95;pipeline&#95;id</text><title>&#10697;  parent_pipeline_id
+     integer</title><text x='189' y='212' text-anchor='end' class='colType'>&#35;</text>  <text id='Default&#46;pipeline&#95;run&#46;extra&#95;data' x='67' y='231'>extra&#95;data</text><title>&#10697;  extra_data
+     enum</title><text x='189' y='228' text-anchor='end' class='colType'>t</text>
+</g></svg>
