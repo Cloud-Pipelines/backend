@@ -170,3 +170,7 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 client_ts/*
+# Cloud Pipelines Studio Web app files
+pipeline-studio-app/*
+# Local execution files
+data/*
