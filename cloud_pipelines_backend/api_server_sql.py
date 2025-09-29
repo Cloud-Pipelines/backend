@@ -764,16 +764,21 @@ class ExecutionNodesApiService_Sql:
 
 
 def _read_container_execution_log_from_uri(log_uri: str):
-    if not log_uri.startswith("gs://"):
-        raise NotImplementedError(
-            f"Only logs in Google Cloud Storage are supported. But got {log_uri=}."
-        )
-    from google.cloud import storage
+    if "://" not in log_uri and ".." not in log_uri:
+        # Consider the URL to be an absolute local path (`/path` or `C:\path` or `C:/path`)
+        with open(log_uri, "r") as reader:
+            return reader.read()
+    elif log_uri.startswith("gs://"):
+        from google.cloud import storage
 
-    gcs_client = storage.Client()
-    blob = storage.Blob.from_string(log_uri, client=gcs_client)
-    log_text = blob.download_as_text()
-    return log_text
+        gcs_client = storage.Client()
+        blob = storage.Blob.from_string(log_uri, client=gcs_client)
+        log_text = blob.download_as_text()
+        return log_text
+    else:
+        raise NotImplementedError(
+            f"Only logs in local storage or Google Cloud Storage are supported. But got {log_uri=}."
+        )
 
 
 @dataclasses.dataclass(kw_only=True)
