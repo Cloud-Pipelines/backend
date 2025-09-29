@@ -90,11 +90,9 @@ def resolve_container_command_line(
         elif isinstance(arg, structures.IfPlaceholder):
             arg = arg.if_structure
             condition_result = expand_command_part(arg.condition)
-            from distutils.util import strtobool
-
-            condition_result_bool = condition_result and strtobool(
-                condition_result
-            )  # Python gotcha: bool('False') == True; Need to use strtobool; Also need to handle None and []
+            condition_result_bool = (
+                condition_result and condition_result.lower() == "true"
+            )
             result_node = arg.then_value if condition_result_bool else arg.else_value
             if result_node is None:
                 return []
