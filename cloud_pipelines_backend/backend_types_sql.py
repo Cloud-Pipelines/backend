@@ -107,8 +107,8 @@ def generate_unique_id() -> str:
     return ("%012x" % milliseconds) + random_bytes.hex()
 
 
-id_column = orm.mapped_column(sql.String(20),
-    primary_key=True, init=False, insert_default=generate_unique_id
+id_column = orm.mapped_column(
+    sql.String(20), primary_key=True, init=False, insert_default=generate_unique_id
 )
 
 # # Needed to put a union type into DB
