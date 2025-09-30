@@ -1,10 +1,6 @@
-from __future__ import annotations
-
 import copy
 import datetime
-import json
 import logging
-import os
 import pathlib
 import typing
 from typing import Any, Optional
@@ -13,12 +9,7 @@ import docker
 import docker.types
 import docker.models.containers
 
-import tempfile
-
 from cloud_pipelines.orchestration.launchers import naming_utils
-from cloud_pipelines.orchestration.storage_providers import (
-    interfaces as storage_provider_interfaces,
-)
 from cloud_pipelines.orchestration.storage_providers import local_storage
 from .. import component_structures as structures
 from . import container_component_utils
@@ -28,8 +19,6 @@ from . import interfaces
 _logger = logging.getLogger(__name__)
 
 _MAX_INPUT_VALUE_SIZE = 10000
-
-_T = typing.TypeVar("_T")
 
 _CONTAINER_FILE_NAME = "data"
 
@@ -64,12 +53,6 @@ def _construct_docker_volume_mount(
     container_path_dir = str(container_path_obj.parent)
     host_path_dir = str(host_path_obj.parent)
 
-    # return {
-    #     "type": "bind",
-    #     "source": host_path_dir,
-    #     "target": container_path_dir,
-    #     "read_only": read_only,
-    # }
     return docker.types.Mount(
         type="bind",
         source=host_path_dir,
@@ -107,11 +90,7 @@ class DockerContainerLauncher(
         input_names = list(input_arguments.keys())
         output_names = list(output_uris.keys())
 
-        # Validate the output URIs:
-        # for output_uri in output_uris.values():
-        #     # !!! FIX: ! Support Windows paths
-        #     if not output_uri.startswith("/"):
-        #         raise ValueError(f"URI must be an absolute local path.")
+        # TODO: Validate the output URIs. Don't forget about (`C:\*` and `C:/*` paths)
 
         container_inputs_root = pathlib.PurePosixPath("/tmp/inputs")
         container_outputs_root = pathlib.PurePosixPath("/tmp/outputs")
@@ -226,57 +205,20 @@ class DockerContainerLauncher(
 
         container_env = container_spec.env or {}
 
-        # volumes = {}
-        # for input_name in input_names:
-        #     host_dir = os.path.dirname(host_input_paths_map[input_name])
-        #     container_dir = os.path.dirname(container_input_paths_map[input_name])
-        #     volumes[host_dir] = dict(
-        #         bind=container_dir,
-        #         mode="ro",
-        #         # mode="rw",  # We're copying the input data anyways, so it's OK if the container modifies it.
-        #     )
-        # for output_name in output_names:
-        #     host_dir = os.path.dirname(host_output_paths_map[output_name])
-        #     container_dir = os.path.dirname(container_output_paths_map[output_name])
-        #     volumes[host_dir] = dict(
-        #         bind=container_dir,
-        #         mode="rw",
-        #     )
-
-        # # Resolve command line
-        # def artifact_value_getter(input_arg: interfaces.InputArgument) -> str:
-        #     if input_arg.value is not None:
-        #         return input_arg.value
-        #     if input_arg.uri:
-        #         uri_reader = self._storage_provider.make_uri(input_arg.uri).get_reader()
-        #         return uri_reader.download_as_text()
-        #     raise interfaces.LauncherError("Input argument missing value and uri")
-
-        # resolved_cmd = container_component_utils.resolve_container_command_line(
-        #     component_spec=component_spec,
-        #     provided_input_names=set(input_names),
-        #     get_input_value=lambda name: artifact_value_getter(input_arguments[name]),
-        #     get_input_path=container_input_paths_map.get,
-        #     get_output_path=container_output_paths_map.get,
-        # )
-
         container = self._docker_client.containers.run(
             image=container_spec.image,
             entrypoint=resolved_cmd.command,
             command=resolved_cmd.args,
             environment=container_env,
-            # remove=True,
-            # volumes=volumes,
             mounts=mounts,
             detach=True,
         )
+        _logger.debug(f"Launched container {container.id=}")
         launched_container = LaunchedDockerContainer(
             id=container.id,
             container=container,
             output_uris=output_uris,
             log_uri=log_uri,
-            storage_provider=self._storage_provider,
-            launcher=self,
         )
         return launched_container
 
@@ -303,7 +245,6 @@ class DockerContainerLauncher(
         )
         new_launched_container = copy.copy(launched_container)
         new_launched_container._container = container
-        new_launched_container._launcher = self
         return new_launched_container
 
 
@@ -314,15 +255,11 @@ class LaunchedDockerContainer(interfaces.LaunchedContainer):
         container: docker.models.containers.Container,
         output_uris: dict[str, str],
         log_uri: str,
-        storage_provider: Any,
-        launcher: DockerContainerLauncher | None = None,
     ):
         self._id = id
         self._container = container
         self._output_uris = output_uris
         self._log_uri = log_uri
-        self._storage_provider = storage_provider
-        self._launcher = launcher
 
     @property
     def id(self) -> str:
@@ -388,7 +325,9 @@ class LaunchedDockerContainer(interfaces.LaunchedContainer):
 
     def upload_log(self):
         log = self.get_log()
-        uri_writer = self._storage_provider.make_uri(self._log_uri).get_writer()
+        uri_writer = (
+            local_storage.LocalStorageProvider().make_uri(self._log_uri).get_writer()
+        )
         uri_writer.upload_from_text(log)
 
     def stream_log_lines(self) -> typing.Iterator[str]:
@@ -425,11 +364,9 @@ class LaunchedDockerContainer(interfaces.LaunchedContainer):
             attrs=docker_dict["debug_container"],
             client=docker_client,
         )
-        storage_provider = local_storage.LocalStorageProvider()
         return LaunchedDockerContainer(
             id=id,
             container=container,
             output_uris=output_uris,
             log_uri=log_uri,
-            storage_provider=storage_provider,
         )
