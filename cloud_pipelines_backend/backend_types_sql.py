@@ -186,6 +186,18 @@ class PipelineRun(_TableBase):
 
     extra_data: orm.Mapped[dict[str, Any] | None] = orm.mapped_column(default=None)
 
+    __table_args__ = (
+        sql.Index(
+            "ix_pipeline_run_created_at_desc",
+            created_at.desc(),
+        ),
+        sql.Index(
+            "ix_pipeline_run_created_by_created_at_desc",
+            created_by,
+            created_at.desc(),
+        ),
+    )
+
 
 class ArtifactData(_TableBase):
     __tablename__ = "artifact_data"
@@ -404,7 +416,7 @@ class ExecutionNode(_TableBase):
     )
     # TODO: Do we need this? It's denormalized.
     container_execution_status: orm.Mapped[ContainerExecutionStatus | None] = (
-        orm.mapped_column(default=None)
+        orm.mapped_column(default=None, index=True)
     )
     container_execution_cache_key: orm.Mapped[str | None] = orm.mapped_column(
         default=None
@@ -476,7 +488,7 @@ class ContainerExecution(_TableBase):
         primary_key=True, init=False, insert_default=generate_unique_id
     )
     # task_spec: orm.Mapped[dict[str, Any]]
-    status: orm.Mapped[ContainerExecutionStatus]
+    status: orm.Mapped[ContainerExecutionStatus] = orm.mapped_column(index=True)
     last_processed_at: orm.Mapped[datetime.datetime | None] = orm.mapped_column(
         default=None
     )
@@ -501,4 +513,12 @@ class ContainerExecution(_TableBase):
 
     execution_nodes: orm.Mapped[list[ExecutionNode]] = orm.relationship(
         default_factory=list, repr=False, back_populates="container_execution"
+    )
+
+    __table_args__ = (
+        sql.Index(
+            "ix_container_execution_status_last_processed_at",
+            status,
+            last_processed_at,
+        ),
     )
