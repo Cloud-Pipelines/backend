@@ -288,7 +288,7 @@ class DockerContainerLauncher(
         self, launched_container_dict: dict
     ) -> "LaunchedDockerContainer":
         launched_container = LaunchedDockerContainer.from_dict(
-            launched_container_dict, storage_provider=self._storage_provider
+            launched_container_dict, docker_client=self._docker_client
         )
         return launched_container
 
@@ -296,7 +296,7 @@ class DockerContainerLauncher(
         self, launched_container_dict: dict
     ) -> "LaunchedDockerContainer":
         launched_container = LaunchedDockerContainer.from_dict(
-            launched_container_dict, storage_provider=self._storage_provider
+            launched_container_dict, docker_client=self._docker_client
         )
         container = self._docker_client.containers.get(
             container_id=launched_container.id
@@ -413,15 +413,19 @@ class LaunchedDockerContainer(interfaces.LaunchedContainer):
 
     @classmethod
     def from_dict(
-        cls, d: dict[str, Any], storage_provider: Any = None
+        cls,
+        d: dict[str, Any],
+        docker_client: docker.DockerClient | None = None,
     ) -> "LaunchedDockerContainer":
         docker_dict = d["docker"]
         id = docker_dict["id"]
         output_uris = docker_dict["output_uris"]
         log_uri = docker_dict["log_uri"]
         container = docker.models.containers.Container(
-            attrs=docker_dict["debug_container"]
+            attrs=docker_dict["debug_container"],
+            client=docker_client,
         )
+        storage_provider = local_storage.LocalStorageProvider()
         return LaunchedDockerContainer(
             id=id,
             container=container,
