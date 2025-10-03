@@ -323,7 +323,7 @@ def _get_current_time() -> datetime.datetime:
 
 
 @dataclasses.dataclass(kw_only=True)
-class ComponentLibraryFolder(bts._BaseModel):
+class ComponentLibraryFolder(component_structures._BaseModel):
     name: str  # Should folder name itself or its children?
     folders: "list[ComponentLibraryFolder] | None" = None
     # components: list[ComponentReference]

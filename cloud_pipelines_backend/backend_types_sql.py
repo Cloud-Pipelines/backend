@@ -2,19 +2,10 @@ import dataclasses
 import datetime
 import enum
 import typing
-from typing import Any, Optional
-
-
-import pydantic
-import pydantic.alias_generators
+from typing import Any
 
 import sqlalchemy as sql
 from sqlalchemy import orm
-
-try:
-    from . import component_structures as structures
-except ImportError:
-    from cloud_pipelines_backend import component_structures as structures
 
 IdType: typing.TypeAlias = str
 
@@ -50,47 +41,6 @@ CONTAINER_STATUSES_ENDED = {
     ContainerExecutionStatus.SKIPPED,
 }
 
-# def dataclass_from_dict(klass, json_dict):
-#     try:
-#         fieldtypes = klass.__annotations__
-#         return klass(**{f: dataclass_from_dict(fieldtypes[f], json_dict[f]) for f in json_dict})
-#     except AttributeError:
-#         if isinstance(json_dict, (tuple, list)):
-#             return [dataclass_from_dict(klass.__args__[0], f) for f in json_dict]
-#         return json_dict
-
-
-_default_pydantic_config = pydantic.ConfigDict(
-    # component.yaml uses camelCase, but I prefer snake_case for JSON.
-    # alias_generator=pydantic.alias_generators.to_camel,
-    validate_assignment=True,
-)
-
-
-class _BaseModel:
-    # Cannot refer to the derived class and referring to the base class does not work
-    # _serialized_names = {}
-    # __pydantic_config__ = pydantic.ConfigDict(
-    #     alias_generator=lambda s: _BaseModel._serialized_names.get(s) or pydantic.alias_generators.to_camel(s),
-    #     validate_assignment=True,
-    # )
-    __pydantic_config__ = _default_pydantic_config
-
-    def to_dict(self) -> dict[str, Any]:
-        return pydantic.TypeAdapter(type(self)).dump_python(
-            self,
-            mode="json",
-            by_alias=True,
-            exclude_defaults=True,
-        )
-
-    @classmethod
-    def from_dict(cls, d: dict):
-        # Parsing dict to dataclass requires strict=False
-        # https://docs.pydantic.dev/latest/errors/validation_errors/#dataclass_exact_type
-        # return pydantic.TypeAdapter(cls).validate_python(d, strict=True)
-        return pydantic.TypeAdapter(cls).validate_python(d)
-
 
 def generate_unique_id() -> str:
     """Generates a 10-byte (20 hex chars) unique ID.session.add
@@ -124,17 +74,6 @@ id_column = orm.mapped_column(
 # If needed they can be represented using `weirdType: ...`
 
 
-# For CreatePipelineRun
-@dataclasses.dataclass
-# class PipelineSpec(_BaseModel):
-class CreatePipelineRunRequest(_BaseModel):
-    root_task: structures.TaskSpec
-    # Component library to avoid repeating component specs inside task specs
-    components: Optional[list[structures.ComponentReference]] = None
-    annotations: Optional[dict[str, Any]] = None
-
-
-# class _TableBase(orm.DeclarativeBase):
 class _TableBase(orm.MappedAsDataclass, orm.DeclarativeBase, kw_only=True):
     # Not really needed due to kw_only=True
     _: dataclasses.KW_ONLY
