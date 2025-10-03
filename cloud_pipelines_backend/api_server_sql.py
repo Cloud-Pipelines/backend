@@ -280,6 +280,69 @@ class PipelineRunsApiService_Sql:
 
         return execution_status_stats
 
+    def list_annotations(
+        self,
+        *,
+        session: orm.Session,
+        id: bts.IdType,
+    ) -> dict[str, str | None]:
+        # pipeline_run = session.get(bts.PipelineRun, id)
+        # if not pipeline_run:
+        #     raise ItemNotFoundError(f"Pipeline run {id} not found.")
+        annotations = {
+            ann.key: ann.value
+            for ann in session.scalars(
+                sql.select(bts.PipelineRunAnnotation).where(
+                    bts.PipelineRunAnnotation.pipeline_run_id == id
+                )
+            )
+        }
+        return annotations
+
+    def set_annotation(
+        self,
+        *,
+        session: orm.Session,
+        id: bts.IdType,
+        key: str,
+        value: str | None = None,
+        user_name: str | None = None,
+        skip_user_check: bool = False,
+    ):
+        pipeline_run = session.get(bts.PipelineRun, id)
+        if not pipeline_run:
+            raise ItemNotFoundError(f"Pipeline run {id} not found.")
+        if not skip_user_check and (user_name != pipeline_run.created_by):
+            raise errors.PermissionError(
+                f"The pipeline run {id} was started by {pipeline_run.created_by} and cannot be changed by {user_name}"
+            )
+        pipeline_run_annotation = bts.PipelineRunAnnotation(
+            pipeline_run_id=id, key=key, value=value
+        )
+        session.merge(pipeline_run_annotation)
+        session.commit()
+
+    def delete_annotation(
+        self,
+        *,
+        session: orm.Session,
+        id: bts.IdType,
+        key: str,
+        user_name: str | None = None,
+        skip_user_check: bool = False,
+    ):
+        pipeline_run = session.get(bts.PipelineRun, id)
+        if not pipeline_run:
+            raise ItemNotFoundError(f"Pipeline run {id} not found.")
+        if not skip_user_check and (user_name != pipeline_run.created_by):
+            raise errors.PermissionError(
+                f"The pipeline run {id} was started by {pipeline_run.created_by} and cannot be changed by {user_name}"
+            )
+
+        existing_annotation = session.get(bts.PipelineRunAnnotation, (id, key))
+        session.delete(existing_annotation)
+        session.commit()
+
 
 def _decode_page_token(page_token: str) -> dict[str, Any]:
     return json.loads(base64.b64decode(page_token)) if page_token else {}

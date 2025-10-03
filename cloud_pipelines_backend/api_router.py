@@ -93,6 +93,15 @@ def setup_routes(
 
         get_user_name_dependency = fastapi.Depends(get_user_name)
 
+        def user_has_admin_permission(
+            user_details: typing.Annotated[UserDetails, get_user_details_dependency],
+        ):
+            return user_details.permissions.get("admin") == True
+
+        user_has_admin_permission_dependency = fastapi.Depends(
+            user_has_admin_permission
+        )
+
         def ensure_admin_user(
             user_details: typing.Annotated[UserDetails, get_user_details_dependency],
         ):
@@ -114,6 +123,7 @@ def setup_routes(
     else:
         get_user_details_dependency = None
         get_user_name_dependency = None
+        user_has_admin_permission_dependency = None
         ensure_admin_user_dependency = None
         ensure_user_can_write_dependency = None
 
@@ -160,6 +170,10 @@ def setup_routes(
             raise fastapi.HTTPException(
                 status_code=503, detail="The server is in read-only mode."
             )
+
+    ensure_user_can_write_dependencies = [fastapi.Depends(check_not_readonly)] + (
+        [ensure_user_can_write_dependency] if ensure_user_can_write_dependency else []
+    )
 
     # === API ===
 
@@ -333,6 +347,54 @@ def setup_routes(
         dependencies=[fastapi.Depends(check_not_readonly)],
         **default_config,
     )(pipeline_run_cancel)
+
+    ### Pipeline run annotations routes
+
+    router.get(
+        "/api/pipeline_runs/{id}/annotations/", tags=["pipelineRuns"], **default_config
+    )(
+        replace_annotations(
+            pipeline_run_service.list_annotations, orm.Session, SessionDep
+        )
+    )
+
+    pipeline_run_set_annotation_func = replace_annotations(
+        pipeline_run_service.set_annotation, orm.Session, SessionDep
+    )
+    pipeline_run_set_annotation_func = inject_user_name(
+        func=pipeline_run_set_annotation_func
+    )
+    if user_has_admin_permission_dependency:
+        pipeline_run_set_annotation_func = add_parameter_annotation_metadata(
+            pipeline_run_set_annotation_func,
+            parameter_name="skip_user_check",
+            annotation_metadata=user_has_admin_permission_dependency,
+        )
+    router.put(
+        "/api/pipeline_runs/{id}/annotations/{key}",
+        tags=["pipelineRuns"],
+        dependencies=ensure_user_can_write_dependencies,
+        **default_config,
+    )(pipeline_run_set_annotation_func)
+
+    pipeline_run_delete_annotation_func = replace_annotations(
+        pipeline_run_service.delete_annotation, orm.Session, SessionDep
+    )
+    pipeline_run_delete_annotation_func = inject_user_name(
+        func=pipeline_run_delete_annotation_func
+    )
+    if user_has_admin_permission_dependency:
+        pipeline_run_delete_annotation_func = add_parameter_annotation_metadata(
+            pipeline_run_delete_annotation_func,
+            parameter_name="skip_user_check",
+            annotation_metadata=user_has_admin_permission_dependency,
+        )
+    router.delete(
+        "/api/pipeline_runs/{id}/annotations/{key}",
+        tags=["pipelineRuns"],
+        dependencies=ensure_user_can_write_dependencies,
+        **default_config,
+    )(pipeline_run_delete_annotation_func)
 
     ### Component library routes
 

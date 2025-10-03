@@ -461,3 +461,15 @@ class ContainerExecution(_TableBase):
             last_processed_at,
         ),
     )
+
+
+class PipelineRunAnnotation(_TableBase):
+    __tablename__ = "pipeline_run_annotation"
+    pipeline_run_id: orm.Mapped[IdType] = orm.mapped_column(
+        sql.ForeignKey(PipelineRun.id),
+        primary_key=True,
+        index=True,
+    )
+    pipeline_run: orm.Mapped[PipelineRun] = orm.relationship(repr=False, init=False)
+    key: orm.Mapped[str] = orm.mapped_column(default=None, primary_key=True)
+    value: orm.Mapped[str | None] = orm.mapped_column(default=None)
