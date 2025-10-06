@@ -598,7 +598,7 @@ class ComponentLibraryService:
                 created_at=current_time,
                 updated_at=current_time,
                 published_by=published_by,
-                root_folder=root_folder.to_dict(),
+                root_folder=root_folder.to_json_dict(),
             )
             component_library_row.id = DEFAULT_COMPONENT_LIBRARY_ID
             session.add(component_library_row)
