@@ -245,19 +245,30 @@ def health_check():
 
 
 # Mounting the web app if the files exist
-web_app_dir = "./pipeline-studio-app/build"
-if pathlib.Path(web_app_dir).exists():
-    logger.info("Found the Web app static files. Mounting them.")
-    # The Web app base URL is currently static and hardcoded.
-    # TODO: Remove this mount once the base URL becomes relative.
-    app.mount(
-        "/pipeline-studio-app/",
-        staticfiles.StaticFiles(directory=web_app_dir, html=True),
-        name="static",
-    )
-    app.mount(
-        "/", staticfiles.StaticFiles(directory=web_app_dir, html=True), name="static"
-    )
-else:
+this_dir = pathlib.Path(__file__).parent
+web_app_search_dirs = [
+    this_dir / ".." / "pipeline-studio-app" / "build",
+    this_dir / ".." / "frontend" / "build",
+    this_dir / ".." / "frontend_build",
+    this_dir / "pipeline-studio-app" / "build",
+]
+found_frontend_build_files = False
+for web_app_dir in web_app_search_dirs:
+    if web_app_dir.exists():
+        found_frontend_build_files = True
+        logger.info(f"Found the Web app static files at {str(web_app_dir)}. Mounting them.")
+        # The Web app base URL is currently static and hardcoded.
+        # TODO: Remove this mount once the base URL becomes relative.
+        app.mount(
+            "/pipeline-studio-app/",
+            staticfiles.StaticFiles(directory=web_app_dir, html=True),
+            name="static",
+        )
+        app.mount(
+            "/",
+            staticfiles.StaticFiles(directory=web_app_dir, html=True),
+            name="static",
+        )
+if not found_frontend_build_files:
     logger.warning("The Web app files were not found. Skipping.")
 # endregion
