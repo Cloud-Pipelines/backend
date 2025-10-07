@@ -8,6 +8,9 @@ import enum
 import typing
 from typing import Any
 
+# typing.Self is only added in Python 3.11
+import typing_extensions
+
 from .. import component_structures as structures
 
 _T = typing.TypeVar("_T")
@@ -115,10 +118,12 @@ class LaunchedContainer(abc.ABC):
         raise NotImplementedError()
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> typing.Self:
+    def from_dict(cls, d: dict[str, Any]) -> typing_extensions.Self:
         raise NotImplementedError()
 
-    def get_refreshed(self,) -> typing.Self:
+    def get_refreshed(
+        self,
+    ) -> typing_extensions.Self:
         raise NotImplementedError()
 
     def get_log(self) -> str:
