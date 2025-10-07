@@ -302,14 +302,14 @@ class LaunchedDockerContainer(interfaces.LaunchedContainer):
     def started_at(self) -> datetime.datetime | None:
         started_at = self._container.attrs["State"].get("StartedAt")
         if started_at:
-            return datetime.datetime.fromisoformat(started_at.replace("Z", "+00:00"))
+            return _parse_docker_time(started_at)
         return None
 
     @property
     def ended_at(self) -> datetime.datetime | None:
         finished_at = self._container.attrs["State"].get("FinishedAt")
         if finished_at:
-            return datetime.datetime.fromisoformat(finished_at.replace("Z", "+00:00"))
+            return _parse_docker_time(finished_at)
         return None
 
     @property
@@ -370,3 +370,14 @@ class LaunchedDockerContainer(interfaces.LaunchedContainer):
             output_uris=output_uris,
             log_uri=log_uri,
         )
+
+def _parse_docker_time(date_string: str) -> datetime.datetime:
+    # Workaround for Python <3.11 failing to parse timestamps that include nanoseconds:
+    # datetime.datetime.fromisoformat("2025-10-07T04:48:35.585991509+00:00")
+    # >>> ValueError: Invalid isoformat string: '2025-10-07T04:48:35.585991509+00:00'
+    # datetime.datetime.strptime("2025-10-07T04:48:35.5859915+00:00", "%Y-%m-%dT%H:%M:%S.%f%z")'
+    # >>> ValueError: time data '2025-10-07T04:48:35.5859915+00:00' does not match format '%Y-%m-%dT%H:%M:%S.%f%z'
+
+    # The timestamp is considered to be UTC
+    # date_string = date_string.replace("Z", "+00:00")
+    return datetime.datetime.strptime(date_string[0:26], "%Y-%m-%dT%H:%M:%S.%f")
