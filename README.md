@@ -25,14 +25,19 @@ A pipeline can be submitted for execution. During the pipeline execution, the pi
 
 #### Using local Docker launcher
 
-1. Install [Docker](https://www.docker.com/get-started/)
-1. Install [uv](https://docs.astral.sh/uv/getting-started/installation/)
-1. `git clone https://github.com/Cloud-Pipelines/backend.git cloud_pipelines --branch master`
-1. `cd cloud_pipelines`
-1. `git clone https://github.com/Cloud-Pipelines/pipeline-studio-app.git pipeline-studio-app/build --branch gh_pages_stable --single-branch --depth 1`
-1. `uv run fastapi run start_local.py`
+1. Install [Docker](https://www.docker.com/get-started/) and [uv](https://docs.astral.sh/uv/getting-started/installation/).
+2. Download the app code:
+```
+git clone https://github.com/Cloud-Pipelines/backend.git cloud_pipelines_studio/backend --branch stable
+git clone https://github.com/Cloud-Pipelines/pipeline-studio-app.git cloud_pipelines_studio/frontend_build --branch gh_pages_stable --single-branch --depth 1
+```
+3. Start the app:
+```
+cd cloud_pipelines_studio/backend && uv run fastapi run start_local.py
+```
 
-Then open the [http://localhost:8000](http://localhost:8000) URL in a Web browser and use the app.
+4. Once the "start_local: Starting the orchestrator" message appears in the terminal, open the [http://localhost:8000](http://localhost:8000) URL in a Web browser and start use the app.
+Click the "New Pipeline" button at the top to start building a new pipeline.
 
 ## Design
 
