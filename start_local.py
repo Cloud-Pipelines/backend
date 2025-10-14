@@ -49,7 +49,7 @@ launcher = local_docker_launchers.DockerContainerLauncher(
 
 # region: Orchestrator configuration
 default_task_annotations = {}
-sleep_seconds_between_queue_sweeps: float = 5.0
+sleep_seconds_between_queue_sweeps: float = 1.0
 # endregion
 
 # region: Authentication configuration
@@ -156,7 +156,7 @@ def run_orchestrator(
     storage_provider: storage_interfaces.StorageProvider,
     data_root_uri: str,
     logs_root_uri: str,
-    sleep_seconds_between_queue_sweeps: float = 5.0,
+    sleep_seconds_between_queue_sweeps: float = 1.0,
 ):
     # logger = logging.getLogger(__name__)
     # orchestrator_logger = logging.getLogger("cloud_pipelines_backend.orchestrator_sql")
