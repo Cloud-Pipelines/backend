@@ -11,7 +11,7 @@ root_data_dir = (
     or os.environ.get("TANGLE_BACKEND_DATA_DIR")
     or "data"
 )
-root_data_dir_path = pathlib.Path(root_data_dir)
+root_data_dir_path = pathlib.Path(root_data_dir).expanduser()
 artifacts_dir_path = root_data_dir_path / "artifacts"
 logs_dir_path = root_data_dir_path / "logs"
 
