@@ -8,7 +8,6 @@ dependencies = [
     "cloud-pipelines>=0.23.2.4",
     "fastapi[standard]>=0.115.12",
     "kubernetes>=33.1.0",
-    "pydantic-settings>=2.11.0",
     "requests<2.32.0",
     "sqlalchemy>=2.0.41",
 ]

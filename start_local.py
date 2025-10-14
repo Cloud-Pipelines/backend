@@ -1,31 +1,16 @@
 import logging
+import os
 import pathlib
 
 import fastapi
-import pydantic_settings
-
-running_as_script = __name__ == "__main__"
-
-
-class Settings(pydantic_settings.BaseSettings):
-    model_config = pydantic_settings.SettingsConfigDict(
-        env_prefix="CLOUD_PIPELINES_BACKEND_",
-        env_nested_max_split=1,
-        env_file=".env",
-        cli_parse_args=running_as_script,
-        cli_kebab_case=True,
-    )
-
-    data_dir: str = "data"
-    host: str = "0.0.0.0"
-    port: int = 8000
-
-
-settings = Settings()
 
 # region Paths configuration
 
-root_data_dir: str = settings.data_dir or "./data/"
+root_data_dir = (
+    os.environ.get("CLOUD_PIPELINES_BACKEND_DATA_DIR")
+    or os.environ.get("TANGLE_BACKEND_DATA_DIR")
+    or "data"
+)
 root_data_dir_path = pathlib.Path(root_data_dir)
 artifacts_dir_path = root_data_dir_path / "artifacts"
 logs_dir_path = root_data_dir_path / "logs"
@@ -299,8 +284,3 @@ for web_app_dir in web_app_search_dirs:
 if not found_frontend_build_files:
     logger.warning("The Web app files were not found. Skipping.")
 # endregion
-
-if __name__ == "__main__":
-    import uvicorn
-
-    uvicorn.run(app, host=settings.host, port=settings.port)
