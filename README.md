@@ -3,6 +3,10 @@
 Cloud Pipelines system helps users create and run ML experiments and production pipelines.
 Any batch workflow that has beginning and end can be orchestrated via Cloud Pipelines.
 
+[Install the app](#installation)
+
+[![image](https://github.com/user-attachments/assets/0ce7ccc0-dad7-4f6a-8677-f2adcd83f558)](https://cloud-pipelines.net/pipeline-studio-app)
+
 ## Details
 
 The Cloud Pipelines system orchestrates containerized command-line programs.
