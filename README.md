@@ -38,7 +38,7 @@ git clone https://github.com/Cloud-Pipelines/pipeline-studio-app.git cloud_pipel
 3. Start the app:
 
 ```shell
-cd cloud_pipelines_studio/backend && uv run fastapi run start_local.py
+cd cloud_pipelines_studio/backend && uv run --frozen fastapi run start_local.py
 ```
 
 4. Once the "start_local: Starting the orchestrator" message appears in the terminal, open the [http://localhost:8000](http://localhost:8000) URL in a Web browser and start use the app.
