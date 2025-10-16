@@ -219,6 +219,12 @@ async def lifespan(app: fastapi.FastAPI):
         target=run_configured_orchestrator,
         daemon=True,
     ).start()
+    if os.environ.get("GOOGLE_CLOUD_SHELL") == "true":
+        # TODO: Find a way to get fastapi/starlette/uvicorn port
+        port = 8000
+        logger.info(
+            f"View app at: https://shell.cloud.google.com/devshell/proxy?port={port}"
+        )
     yield
 
 
