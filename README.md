@@ -7,20 +7,6 @@ Any batch workflow that has beginning and end can be orchestrated via a pipeline
 
 [![image](https://github.com/user-attachments/assets/0ce7ccc0-dad7-4f6a-8677-f2adcd83f558)](https://cloud-pipelines.net/pipeline-studio-app)
 
-## Details
-
-A pipeline system like Tangle orchestrates containerized command-line programs.
-When pipeline system runs a pipeline, it executes an interconnected graph of containerized programs locally or remotely (e.g. in cloud), and facilitates the transfer of data between them.
-
-Pipelines are built from component tasks.
-A component describes a certain command-line program inside a container. Component specification describes its signature (inputs, outputs), metadata (name, description and annotations) and implementation which specifies which container image to use, which program to start and and how to connect the inputs and outputs to the program's command-line arguments.
-Components can be written in any language. All Cloud Pipelines projects including Tangle support arbitrary containers and arbitrary programs.
-
-A task describes an instance of a component and specifies the input arguments for the component's inputs. Tasks are connected together into a graph by linking some upstream task outputs to some downstream task inputs.
-
-The resulting graph of interconnected tasks is called a pipeline.
-A pipeline can be submitted for execution. During the pipeline execution, the pipeline's tasks are executed (in parallel, if possible) and produce output artifacts that are passed to downstream tasks.
-
 ## Installation
 
 ### Try on local machine
@@ -47,7 +33,6 @@ Windows:
 cd tangle && backend\start_local.cmd
 ```
 
-
 4. Once the "start_local: Starting the orchestrator" message appears in the terminal, open the [http://localhost:8000](http://localhost:8000) URL in a Web browser and start use the app.
 Click the "New Pipeline" button at the top to start building a new pipeline.
 
@@ -70,6 +55,21 @@ cd tangle && backend/start_local.sh
 ```
 
 4. Once the "start_local: Starting the orchestrator", "View app at" messages appears in the terminal, open the <https://shell.cloud.google.com/devshell/proxy?port=8000> URL in another browser tab and start using the app.
+
+## Concepts
+
+A **pipeline system** like Tangle orchestrates containerized command-line programs.
+When pipeline system runs a pipeline, it executes an interconnected graph of containerized programs locally or remotely (e.g. in cloud), and facilitates the transfer of data between them.
+
+A **pipeline** is a *graph* of interconnected component tasks.
+
+A **component** describes a certain command-line program inside a container. Component specification describes its signature (inputs, outputs), metadata (name, description and annotations) and implementation which specifies which container image to use, which program to start and and how to connect the inputs and outputs to the program's command-line arguments.
+Components can be written in any language. All Cloud Pipelines projects including Tangle supports arbitrary containers and arbitrary programs.
+
+A **task** describes an instance of a component and specifies the input arguments for the component's inputs. Tasks are connected together into a graph by linking some upstream task outputs to some downstream task inputs.
+
+The resulting *graph* of interconnected tasks is called a *pipeline*.
+A pipeline can be submitted for *execution*. During the pipeline execution, the pipeline's tasks are executed (in parallel, if possible) and produce output artifacts that are passed to downstream tasks.
 
 ## Design
 
