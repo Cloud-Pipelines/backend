@@ -11,3 +11,8 @@ dependencies = [
     "requests<2.32.0",
     "sqlalchemy>=2.0.41",
 ]
+
+[dependency-groups]
+huggingface = [
+    "huggingface-hub>=0.35.3",
+]
