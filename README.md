@@ -59,10 +59,10 @@ git clone https://github.com/Cloud-Pipelines/pipeline-studio-app.git tangle/fron
 3. Start the app:
 
 ```shell
-cd tangle/backend && uv run fastapi run start_local.py
+cd tangle && backend/start_local.sh
 ```
 
-4. Once the "start_local: Starting the orchestrator" message appears in the terminal, open the  <https://shell.cloud.google.com/devshell/proxy?port=8000> URL in another browser tab.
+4. Once the "start_local: Starting the orchestrator", "View app at" messages appears in the terminal, open the <https://shell.cloud.google.com/devshell/proxy?port=8000> URL in another browser tab and start using the app.
 
 ## Design
 
