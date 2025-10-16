@@ -1,7 +1,7 @@
-# Cloud Pipelines backend
+# Tangle backend
 
-Cloud Pipelines system helps users create and run ML experiments and production pipelines.
-Any batch workflow that has beginning and end can be orchestrated via Cloud Pipelines.
+The Tangle system helps users create and run ML experiments and production pipelines.
+Any batch workflow that has beginning and end can be orchestrated via a pipeline.
 
 [Install the app](#installation)
 
@@ -9,14 +9,12 @@ Any batch workflow that has beginning and end can be orchestrated via Cloud Pipe
 
 ## Details
 
-The Cloud Pipelines system orchestrates containerized command-line programs.
-
-The Cloud Pipelines system runs pipelines. It executes an interconnected graph of containerized programs locally or remotely (e.g. in cloud), and facilitates the transfer of data between them.
+A pipeline system like Tangle orchestrates containerized command-line programs.
+When pipeline system runs a pipeline, it executes an interconnected graph of containerized programs locally or remotely (e.g. in cloud), and facilitates the transfer of data between them.
 
 Pipelines are built from component tasks.
-
-Each component describes a certain command-line program inside a container. Component specification describes its signature (inputs, outputs), metadata (name, description and annotations) and implementation which specifies which container image to use, which program to start and and how to connect the inputs and outputs to the program's command-line arguments.
-Components can be written in any language. The Cloud Pipelines system supports arbitrary container and arbitrary programs.
+A component describes a certain command-line program inside a container. Component specification describes its signature (inputs, outputs), metadata (name, description and annotations) and implementation which specifies which container image to use, which program to start and and how to connect the inputs and outputs to the program's command-line arguments.
+Components can be written in any language. All Cloud Pipelines projects including Tangle support arbitrary containers and arbitrary programs.
 
 A task describes an instance of a component and specifies the input arguments for the component's inputs. Tasks are connected together into a graph by linking some upstream task outputs to some downstream task inputs.
 
@@ -31,8 +29,8 @@ A pipeline can be submitted for execution. During the pipeline execution, the pi
 2. Download the app code (needs to be done once):
 
 ```shell
-git clone https://github.com/Cloud-Pipelines/backend.git cloud_pipelines_studio/backend --branch stable
-git clone https://github.com/Cloud-Pipelines/pipeline-studio-app.git cloud_pipelines_studio/frontend_build --branch gh_pages_stable --single-branch --depth 1
+git clone https://github.com/Cloud-Pipelines/backend.git tangle/backend --branch stable
+git clone https://github.com/Cloud-Pipelines/pipeline-studio-app.git tangle/frontend_build --branch gh_pages_stable --single-branch --depth 1
 ```
 
 3. Start the app:
@@ -40,13 +38,13 @@ git clone https://github.com/Cloud-Pipelines/pipeline-studio-app.git cloud_pipel
 Linux and Mac OS:
 
 ```shell
-cd cloud_pipelines_studio && backend\start_local.sh
+cd tangle && backend/start_local.sh
 ```
 
 Windows:
 
 ```shell
-cd cloud_pipelines_studio && backend\start_local.cmd
+cd tangle && backend\start_local.cmd
 ```
 
 
@@ -75,7 +73,7 @@ cd tangle && backend/start_local.sh
 
 ## Design
 
-This dedicated Cloud Pipelines backend consists of the API Server and the Orchestrator.
+This backend consists of the API Server and the Orchestrator.
 
 ### API Server
 
@@ -106,3 +104,7 @@ Currently the following launchers are supported:
 * Google Cloud Kubernetes Engine using Google Cloud Storage
 
 More launchers may be added in the future.
+
+### Credits
+
+This [Tangle Pipelines](https://github.com/Cloud-Pipelines/tangle) [backend](https://github.com/Cloud-Pipelines/backend) is created by [Alexey Volkov](https://github.com/Ark-kun) as part of the [Cloud Pipelines](https://github.com/Cloud-Pipelines) project. It's derived from the [Cloud Pipelines SDK](https://github.com/Cloud-Pipelines/sdk) orchestrator and uses parts of it under the hood.
