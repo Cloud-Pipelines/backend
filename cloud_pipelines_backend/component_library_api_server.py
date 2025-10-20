@@ -188,11 +188,14 @@ class PublishedComponentService:
         include_deprecated: bool = False,
         name_substring: str | None = None,
         published_by_substring: str | None = None,
+        digest: str | None = None,
     ) -> ListPublishedComponentsResponse:
         # TODO: Implement paging
         # TODO: Implement filtering/search
         # TODO: Implement visibility/access control
         query = sql.select(PublishedComponentRow)
+        if digest:
+            query = query.filter(PublishedComponentRow.digest == digest)
         if not include_deprecated:
             query = query.filter(PublishedComponentRow.deprecated == False)
         if name_substring:
