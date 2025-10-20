@@ -481,7 +481,7 @@ class OrchestratorService_Sql:
         current_time = _get_current_time()
 
         container_execution = bts.ContainerExecution(
-            status=bts.ContainerExecutionStatus.PENDING,
+            status=bts.ContainerExecutionStatus(launched_container.status),
             last_processed_at=current_time,
             created_at=current_time,
             launcher_data=launched_container.to_dict(),
@@ -514,7 +514,7 @@ class OrchestratorService_Sql:
             session.add(container_execution)
             execution.container_execution = container_execution
             execution.container_execution_cache_key = cache_key
-            execution.container_execution_status = bts.ContainerExecutionStatus.PENDING
+            execution.container_execution_status = container_execution.status
             # TODO: Maybe add artifact value and URI to input ArtifactData.
 
     def internal_process_one_running_execution(
