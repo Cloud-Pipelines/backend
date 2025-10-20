@@ -726,7 +726,12 @@ class OrchestratorService_Sql:
                     output_name: bts.ArtifactData(
                         total_size=data_info.total_size,
                         is_dir=data_info.is_dir,
-                        hash="md5=" + data_info.hashes["md5"],
+                        # Using 1st hash only.
+                        # TODO: Support multiple hashes.
+                        hash=[
+                            f"{hash_name}={hash_value}"
+                            for hash_name, hash_value in data_info.hashes.items()
+                        ][0],
                         uri=output_artifact_uris[output_name],
                         # Preloading artifact value is it's small enough (e.g. <=255 bytes)
                         value=_retry(
