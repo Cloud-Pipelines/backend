@@ -458,8 +458,8 @@ class OrchestratorService_Sql:
                 )
             )
             if launched_container.status not in (
-                bts.ContainerExecutionStatus.PENDING,
-                bts.ContainerExecutionStatus.RUNNING,
+                launcher_interfaces.ContainerStatus.PENDING,
+                launcher_interfaces.ContainerStatus.RUNNING,
             ):
                 raise OrchestratorError(
                     f"Unexpected status of just launched container: {launched_container.status=}, {launched_container=}"
