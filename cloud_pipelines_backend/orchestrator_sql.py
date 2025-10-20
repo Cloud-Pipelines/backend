@@ -35,7 +35,9 @@ class OrchestratorService_Sql:
     def __init__(
         self,
         session_factory: typing.Callable[[], orm.Session],
-        launcher: launcher_interfaces.ContainerTaskLauncher,
+        launcher: launcher_interfaces.ContainerTaskLauncher[
+            launcher_interfaces.LaunchedContainer
+        ],
         storage_provider: storage_provider_interfaces.StorageProvider,
         data_root_uri: str,
         logs_root_uri: str,

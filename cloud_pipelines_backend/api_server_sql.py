@@ -715,7 +715,7 @@ class ExecutionNodesApiService_Sql:
         self,
         session: orm.Session,
         id: bts.IdType,
-        container_launcher: "launcher_interfaces.ContainerTaskLauncher | None" = None,
+        container_launcher: "launcher_interfaces.ContainerTaskLauncher[launcher_interfaces.LaunchedContainer] | None" = None,
     ) -> GetContainerExecutionLogResponse:
         execution = session.get(bts.ExecutionNode, id)
         if not execution:

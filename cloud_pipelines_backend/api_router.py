@@ -68,9 +68,7 @@ def setup_routes(
     app: fastapi.FastAPI,
     db_engine: sqlalchemy.Engine,
     user_details_getter: typing.Callable[..., UserDetails] | None = None,
-    container_launcher_for_log_streaming: (
-        "launcher_interfaces.ContainerTaskLauncher | None"
-    ) = None,
+    container_launcher_for_log_streaming: "launcher_interfaces.ContainerTaskLauncher[launcher_interfaces.LaunchedContainer] | None" = None,
     default_component_library_owner_username: str = "admin",
 ):
     # We request `app: fastapi.FastAPI` instead of just returning the router
