@@ -83,6 +83,13 @@ def setup_routes(
             content={"message": str(exc)},
         )
 
+    @app.exception_handler(errors.PermissionError)
+    def handle_permission_error(request: fastapi.Request, exc: errors.PermissionError):
+        return fastapi.responses.JSONResponse(
+            status_code=403,
+            content={"message": str(exc)},
+        )
+
     if user_details_getter:
         get_user_details_dependency = fastapi.Depends(user_details_getter)
 
@@ -156,7 +163,6 @@ def setup_routes(
         component_library_service._initialize_empty_default_library_if_missing(
             published_by=default_component_library_owner_username
         )
-
 
     artifact_service = api_server_sql.ArtifactNodesApiService_Sql()
     execution_service = api_server_sql.ExecutionNodesApiService_Sql()
