@@ -368,9 +368,10 @@ def _parse_filter(filter: str) -> dict[str, str]:
     return parsed_filter
 
 
-# ========== ExecutionNodeApiService_Mongo
+# ========== ExecutionNodeApiService_Sql
 
-
+# TODO: Use _storage_provider.calculate_hash(path)
+# Hashing of constant arguments should the use same algorithm as caching of the output artifacts.
 def _calculate_hash(s: str) -> str:
     import hashlib
 

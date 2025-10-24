@@ -140,6 +140,8 @@ class ComponentService:
 class PublishedComponentRow(bts._TableBase):
     __tablename__ = "published_component"
 
+    # There are queries that search by digest only.
+    # But we do not need a separate index since digest is the 1st part fo the composite primary key.
     digest: orm.Mapped[str] = orm.mapped_column(primary_key=True)
     published_by: orm.Mapped[str] = orm.mapped_column(primary_key=True)
     deprecated: orm.Mapped[bool] = orm.mapped_column(default=False)

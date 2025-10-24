@@ -119,7 +119,6 @@ def setup_routes(
             published_by=default_component_library_owner_username
         )
 
-
     artifact_service = api_server_sql.ArtifactNodesApiService_Sql()
     execution_service = api_server_sql.ExecutionNodesApiService_Sql()
     pipeline_run_service = api_server_sql.PipelineRunsApiService_Sql()
