@@ -358,6 +358,29 @@ def setup_routes(
         **default_config,
     )(pipeline_run_delete_annotation_func)
 
+    ### Users
+
+    @dataclasses.dataclass
+    class GetUserResponse:
+        id: str
+        permissions: list[str]
+
+    @router.get("/api/users/me", tags=["users"])
+    def get_current_user(
+        user_details: typing.Annotated[UserDetails | None, get_user_details_dependency],
+    ) -> GetUserResponse | None:
+        if not user_details:
+            return None
+        permissions = list(
+            permission
+            for permission, is_granted in (user_details.permissions or {}).items()
+            if is_granted == True
+        )
+        return GetUserResponse(
+            id=user_details.name,
+            permissions=permissions,
+        )
+
     ### Component library routes
 
     session_factory = lambda: orm.Session(
