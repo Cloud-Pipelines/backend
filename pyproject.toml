@@ -14,5 +14,5 @@ dependencies = [
 
 [dependency-groups]
 huggingface = [
-    "huggingface-hub>=0.35.3",
+    "huggingface-hub[oauth]>=0.35.3",
 ]
