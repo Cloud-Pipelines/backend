@@ -4,6 +4,7 @@ import traceback
 import fastapi
 
 from cloud_pipelines_backend import api_router
+from cloud_pipelines_backend import database_ops
 
 app = fastapi.FastAPI(
     title="Cloud Pipelines API",
@@ -28,7 +29,7 @@ database_uri = (
     or DEFAULT_DATABASE_URI
 )
 
-db_engine = api_router.create_db_engine(
+db_engine = database_ops.create_db_engine_and_migrate_db(
     database_uri=database_uri,
 )
 

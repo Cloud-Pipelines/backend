@@ -123,9 +123,9 @@ logger = logging.getLogger(__name__)
 # endregion
 
 # region: Database engine initialization
-from cloud_pipelines_backend import api_router
+from cloud_pipelines_backend import database_ops
 
-db_engine = api_router.create_db_engine(
+db_engine = database_ops.create_db_engine(
     database_uri=database_uri,
 )
 # endregion
@@ -143,12 +143,6 @@ from cloud_pipelines.orchestration.storage_providers import (
     interfaces as storage_interfaces,
 )
 from cloud_pipelines_backend import orchestrator_sql
-
-
-def create_db_and_tables(db_engine: sqlalchemy.Engine):
-    from cloud_pipelines_backend import backend_types_sql
-
-    backend_types_sql._TableBase.metadata.create_all(db_engine)
 
 
 def run_orchestrator(
@@ -210,11 +204,12 @@ import fastapi
 from fastapi import staticfiles
 
 from cloud_pipelines_backend import api_router
+from cloud_pipelines_backend import database_ops
 
 
 @contextlib.asynccontextmanager
 async def lifespan(app: fastapi.FastAPI):
-    create_db_and_tables(db_engine=db_engine)
+    database_ops.initialize_and_migrate_db(db_engine=db_engine)
     threading.Thread(
         target=run_configured_orchestrator,
         daemon=True,
