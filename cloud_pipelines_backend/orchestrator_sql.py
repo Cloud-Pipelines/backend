@@ -213,27 +213,38 @@ class OrchestratorService_Sql:
         )
 
         # Trying to reuse an older execution from cache.
-        # TODO: Support cache reuse options (max cached data staleness etc).
-        execution_candidates = session.scalars(
-            sql.select(bts.ExecutionNode)
-            .where(bts.ExecutionNode.container_execution_cache_key == cache_key)
-            .where(
-                bts.ExecutionNode.container_execution_status.in_(
-                    [
-                        # We can reuse both succeeded executions and also non yet finished ones.
-                        # Reusing still running executions is important since it allows cache reuse
-                        # when multiple versions of a pipeline are submitted in parallel.
-                        # bts.ContainerExecutionStatus.STARTING,  # Doesn't exist yet
-                        bts.ContainerExecutionStatus.PENDING,
-                        bts.ContainerExecutionStatus.RUNNING,
-                        bts.ContainerExecutionStatus.SUCCEEDED,
-                    ]
-                )
+        max_cache_staleness_str: str | None = None
+        if task_spec.execution_options and task_spec.execution_options.caching_strategy:
+            max_cache_staleness_str = (
+                task_spec.execution_options.caching_strategy.max_cache_staleness
             )
-            # TODO: Filter by purged==False. Or `expires_at`.
-            .join(bts.ContainerExecution)
-            .order_by(bts.ContainerExecution.created_at.desc())
-        ).all()
+
+        # TODO: Support other ways to express 0-length time period.
+        if max_cache_staleness_str == "P0D":
+            execution_candidates: typing.Sequence[bts.ExecutionNode] = []
+        else:
+            # TODO: Support cache reuse options (max cached data staleness etc).
+            # TODO: It might be better to search for ContainerExecutions rather than ExecutionNodes.
+            execution_candidates = session.scalars(
+                sql.select(bts.ExecutionNode)
+                .where(bts.ExecutionNode.container_execution_cache_key == cache_key)
+                .where(
+                    bts.ExecutionNode.container_execution_status.in_(
+                        [
+                            # We can reuse both succeeded executions and also non yet finished ones.
+                            # Reusing still running executions is important since it allows cache reuse
+                            # when multiple versions of a pipeline are submitted in parallel.
+                            # bts.ContainerExecutionStatus.STARTING,  # Doesn't exist yet
+                            bts.ContainerExecutionStatus.PENDING,
+                            bts.ContainerExecutionStatus.RUNNING,
+                            bts.ContainerExecutionStatus.SUCCEEDED,
+                        ]
+                    )
+                )
+                # TODO: Filter by purged==False. Or `expires_at`.
+                .join(bts.ContainerExecution)
+                .order_by(bts.ContainerExecution.created_at.desc())
+            ).all()
         non_purged_candidates = [
             execution_candidate
             for execution_candidate in execution_candidates
@@ -257,6 +268,11 @@ class OrchestratorService_Sql:
 
         if non_purged_candidates:
             # Re-using the oldest candidate
+            # TODO: Use better cached execution selection strategy:
+            # 1. Try to reuse the execution with `max_cache_staleness in extra_data["used_for_max_cache_staleness"]`. There should be 0 or 1 of those.
+            # 2. Else: Try to reuse the latest SUCCEEDED execution. Mark it `extra_data["used_for_max_cache_staleness"][max_cache_staleness] = True`.
+            # 3. Else: Try to reuse the latest RUNNING/PENDING execution. Mark it `extra_data["used_for_max_cache_staleness"][max_cache_staleness] = True`.
+            # There must be at least one SUCCEEDED/RUNNING/PENDING since non_purged_candidates is non-empty.
             old_execution = non_purged_candidates[-1]
             _logger.info(
                 f"Execution {execution.id=} will reuse the {old_execution.id=} with "
