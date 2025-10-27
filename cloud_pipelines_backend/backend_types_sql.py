@@ -358,7 +358,7 @@ class ExecutionNode(_TableBase):
         orm.mapped_column(default=None, index=True)
     )
     container_execution_cache_key: orm.Mapped[str | None] = orm.mapped_column(
-        default=None
+        index=True, default=None
     )
 
     # ? UX-only de-normalized

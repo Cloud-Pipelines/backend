@@ -55,11 +55,14 @@ def create_db_engine(
 
 
 def migrate_db(db_engine: sqlalchemy.Engine):
-    pass
-
     # # Example:
     # sqlalchemy.Index(
     #     "ix_pipeline_run_created_by_created_at_desc",
     #     bts.PipelineRun.created_by,
     #     bts.PipelineRun.created_at.desc(),
     # ).create(db_engine, checkfirst=True)
+
+    sqlalchemy.Index(
+        "ix_execution_node_container_execution_cache_key",
+        bts.ExecutionNode.container_execution_cache_key,
+    ).create(db_engine, checkfirst=True)
