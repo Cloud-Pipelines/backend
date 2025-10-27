@@ -232,7 +232,7 @@ class OrchestratorService_Sql:
             )
             # TODO: Filter by purged==False. Or `expires_at`.
             .join(bts.ContainerExecution)
-            .order_by(bts.ContainerExecution.created_at)
+            .order_by(bts.ContainerExecution.created_at.desc())
         ).all()
         non_purged_candidates = [
             execution_candidate
@@ -257,7 +257,7 @@ class OrchestratorService_Sql:
 
         if non_purged_candidates:
             # Re-using the oldest candidate
-            old_execution = non_purged_candidates[0]
+            old_execution = non_purged_candidates[-1]
             _logger.info(
                 f"Execution {execution.id=} will reuse the {old_execution.id=} with "
                 f"{old_execution.container_execution_id=}, {old_execution.container_execution_status=}"
