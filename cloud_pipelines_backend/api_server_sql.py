@@ -839,6 +839,13 @@ def _read_container_execution_log_from_uri(log_uri: str):
         blob = storage.Blob.from_string(log_uri, client=gcs_client)
         log_text = blob.download_as_text()
         return log_text
+    elif log_uri.startswith("hf://"):
+        from cloud_pipelines_backend.storage_providers import huggingface_repo_storage
+
+        storage_provider = huggingface_repo_storage.HuggingFaceRepoStorageProvider()
+        uri_accessor = storage_provider.parse_uri_get_accessor(uri_string=log_uri)
+        log_text = uri_accessor.get_reader().download_as_text()
+        return log_text
     else:
         raise NotImplementedError(
             f"Only logs in local storage or Google Cloud Storage are supported. But got {log_uri=}."
