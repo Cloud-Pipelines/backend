@@ -88,6 +88,7 @@ class OrchestratorService_Sql:
             )
             # TODO: Maybe add last_processed_at
             # .order_by(bts.ExecutionNode.last_processed_at)
+            .order_by(bts.ExecutionNode.id)
             .limit(1)
         )
         queued_execution = session.scalar(query)
