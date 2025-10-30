@@ -14,8 +14,9 @@ import typing_extensions
 from .. import component_structures as structures
 
 _T = typing.TypeVar("_T")
-_TLauncher = typing.TypeVar("_TLauncher", bound="ContainerTaskLauncher")
-_TLaunchedContainer = typing.TypeVar("_TLaunchedContainer", bound="LaunchedContainer")
+_TLaunchedContainer = typing.TypeVar(
+    "_TLaunchedContainer", bound="LaunchedContainer", covariant=True
+)
 
 
 __all__ = [
@@ -46,17 +47,17 @@ class ContainerTaskLauncher(typing.Generic[_TLaunchedContainer], abc.ABC):
         input_arguments: dict[str, InputArgument],
         output_uris: dict[str, str],
         log_uri: str,
-        annotations: dict[str, Any] | None = None,
+        annotations: dict[str, str] | None = None,
     ) -> _TLaunchedContainer:
         raise NotImplementedError()
 
     def deserialize_launched_container_from_dict(
-        self, launched_container_dict: dict
+        self, launched_container_dict: dict[str, Any]
     ) -> _TLaunchedContainer:
         raise NotImplementedError()
 
     def get_refreshed_launched_container_from_dict(
-        self, launched_container_dict: dict
+        self, launched_container_dict: dict[str, Any]
     ) -> _TLaunchedContainer:
         raise NotImplementedError()
 
@@ -111,9 +112,6 @@ class LaunchedContainer(abc.ABC):
     def launcher_error_message(self) -> str | None:
         raise NotImplementedError()
 
-    def upload_logs(self):
-        raise NotImplementedError()
-
     def to_dict(self) -> dict[str, Any]:
         raise NotImplementedError()
 
@@ -129,13 +127,13 @@ class LaunchedContainer(abc.ABC):
     def get_log(self) -> str:
         raise NotImplementedError()
 
-    def upload_log(self):
+    def upload_log(self) -> None:
         raise NotImplementedError()
 
     def stream_log_lines(self) -> typing.Iterator[str]:
         raise NotImplementedError()
 
-    def terminate(self):
+    def terminate(self) -> None:
         raise NotImplementedError()
 
 
