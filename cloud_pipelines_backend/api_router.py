@@ -65,7 +65,10 @@ def setup_routes(
         user_details: typing.Annotated[UserDetails, get_user_details_dependency],
     ):
         if not user_details.permissions.get("admin"):
-            raise RuntimeError(f"User {user_details.name} is not an admin user")
+            raise fastapi.HTTPException(
+                status_code=fastapi.status.HTTP_403_FORBIDDEN,
+                detail=f"User {user_details.name} is not an admin user",
+            )
 
     ensure_admin_user_dependency = fastapi.Depends(ensure_admin_user)
 
@@ -73,8 +76,9 @@ def setup_routes(
         user_details: typing.Annotated[UserDetails, get_user_details_dependency],
     ):
         if not user_details.permissions.get("write"):
-            raise RuntimeError(
-                f"User {user_details.name} does not have write permission"
+            raise fastapi.HTTPException(
+                status_code=fastapi.status.HTTP_403_FORBIDDEN,
+                detail=f"User {user_details.name} does not have write permission",
             )
 
     ensure_user_can_write_dependency = fastapi.Depends(ensure_user_can_write)
