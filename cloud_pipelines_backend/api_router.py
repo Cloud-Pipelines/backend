@@ -31,7 +31,7 @@ class UserDetails:
 def setup_routes(
     app: fastapi.FastAPI,
     db_engine: sqlalchemy.Engine,
-    user_details_getter: typing.Callable[..., UserDetails] | None = None,
+    user_details_getter: typing.Callable[..., UserDetails],
     container_launcher_for_log_streaming: "launcher_interfaces.ContainerTaskLauncher[launcher_interfaces.LaunchedContainer] | None" = None,
     default_component_library_owner_username: str = "admin",
 ):
@@ -45,60 +45,47 @@ def setup_routes(
             content={"message": str(exc)},
         )
 
-    if user_details_getter:
-        get_user_details_dependency = fastapi.Depends(user_details_getter)
+    get_user_details_dependency = fastapi.Depends(user_details_getter)
 
-        def get_user_name(
-            user_details: typing.Annotated[UserDetails, get_user_details_dependency],
-        ) -> str | None:
-            return user_details.name
+    def get_user_name(
+        user_details: typing.Annotated[UserDetails, get_user_details_dependency],
+    ) -> str | None:
+        return user_details.name
 
-        get_user_name_dependency = fastapi.Depends(get_user_name)
+    get_user_name_dependency = fastapi.Depends(get_user_name)
 
-        def user_has_admin_permission(
-            user_details: typing.Annotated[UserDetails, get_user_details_dependency],
-        ):
-            return user_details.permissions.get("admin") == True
+    def user_has_admin_permission(
+        user_details: typing.Annotated[UserDetails, get_user_details_dependency],
+    ):
+        return user_details.permissions.get("admin") == True
 
-        user_has_admin_permission_dependency = fastapi.Depends(
-            user_has_admin_permission
-        )
+    user_has_admin_permission_dependency = fastapi.Depends(user_has_admin_permission)
 
-        def ensure_admin_user(
-            user_details: typing.Annotated[UserDetails, get_user_details_dependency],
-        ):
-            if not user_details.permissions.get("admin"):
-                raise RuntimeError(f"User {user_details.name} is not an admin user")
+    def ensure_admin_user(
+        user_details: typing.Annotated[UserDetails, get_user_details_dependency],
+    ):
+        if not user_details.permissions.get("admin"):
+            raise RuntimeError(f"User {user_details.name} is not an admin user")
 
-        ensure_admin_user_dependency = fastapi.Depends(ensure_admin_user)
+    ensure_admin_user_dependency = fastapi.Depends(ensure_admin_user)
 
-        def ensure_user_can_write(
-            user_details: typing.Annotated[UserDetails, get_user_details_dependency],
-        ):
-            if not user_details.permissions.get("write"):
-                raise RuntimeError(
-                    f"User {user_details.name} does not have write permission"
-                )
+    def ensure_user_can_write(
+        user_details: typing.Annotated[UserDetails, get_user_details_dependency],
+    ):
+        if not user_details.permissions.get("write"):
+            raise RuntimeError(
+                f"User {user_details.name} does not have write permission"
+            )
 
-        ensure_user_can_write_dependency = fastapi.Depends(ensure_user_can_write)
-
-    else:
-        get_user_details_dependency = None
-        get_user_name_dependency = None
-        user_has_admin_permission_dependency = None
-        ensure_admin_user_dependency = None
-        ensure_user_can_write_dependency = None
+    ensure_user_can_write_dependency = fastapi.Depends(ensure_user_can_write)
 
     def inject_user_name(func: typing.Callable, parameter_name: str = "user_name"):
-        if get_user_name_dependency:
-            # The `user_name` parameter value now comes from a Dependency (instead of request)
-            return add_parameter_annotation_metadata(
-                func,
-                parameter_name=parameter_name,
-                annotation_metadata=get_user_name_dependency,
-            )
-        else:
-            return func
+        # The `user_name` parameter value now comes from a Dependency (instead of request)
+        return add_parameter_annotation_metadata(
+            func,
+            parameter_name=parameter_name,
+            annotation_metadata=get_user_name_dependency,
+        )
 
     def get_session():
         with orm.Session(autocommit=False, autoflush=False, bind=db_engine) as session:
@@ -132,9 +119,10 @@ def setup_routes(
                 status_code=503, detail="The server is in read-only mode."
             )
 
-    ensure_user_can_write_dependencies = [fastapi.Depends(check_not_readonly)] + (
-        [ensure_user_can_write_dependency] if ensure_user_can_write_dependency else []
-    )
+    ensure_user_can_write_dependencies = [
+        fastapi.Depends(check_not_readonly),
+        ensure_user_can_write_dependency,
+    ]
 
     # === API ===
 
@@ -238,25 +226,17 @@ def setup_routes(
     create_run_func = pipeline_run_service.create
     # The `session` parameter value now comes from a Dependency (instead of request)
     create_run_func = replace_annotations(create_run_func, orm.Session, SessionDep)
-    if get_user_name_dependency:
-        # The `created_by` parameter value now comes from a Dependency (instead of request)
-        create_run_func = add_parameter_annotation_metadata(
-            create_run_func,
-            parameter_name="created_by",
-            annotation_metadata=get_user_name_dependency,
-        )
+    # The `created_by` parameter value now comes from a Dependency (instead of request)
+    create_run_func = add_parameter_annotation_metadata(
+        create_run_func,
+        parameter_name="created_by",
+        annotation_metadata=get_user_name_dependency,
+    )
 
     router.post(
         "/api/pipeline_runs/",
         tags=["pipelineRuns"],
-        dependencies=(
-            [fastapi.Depends(check_not_readonly)]
-            + (
-                [ensure_user_can_write_dependency]
-                if ensure_user_can_write_dependency
-                else []
-            )
-        ),
+        dependencies=ensure_user_can_write_dependencies,
         **default_config,
     )(create_run_func)
 
@@ -268,39 +248,24 @@ def setup_routes(
         )
     )
 
-    if get_user_name_dependency:
-        # The `terminated_by` parameter value now comes from a Dependency (instead of request)
-        # We also allow admin users to cancel any run
-        def pipeline_run_cancel(
-            session: SessionDep,
-            id: backend_types_sql.IdType,
-            user_details: typing.Annotated[UserDetails, get_user_details_dependency],
-        ):
-            terminated_by = user_details.name
-            if user_details and user_details and user_details.permissions.get("admin"):
-                skip_user_check = True
-            else:
-                skip_user_check = False
-            pipeline_run_service.terminate(
-                session=session,
-                id=id,
-                terminated_by=terminated_by,
-                skip_user_check=skip_user_check,
-            )
-
-    else:
-
-        def pipeline_run_cancel(
-            session: SessionDep,
-            id: backend_types_sql.IdType,
-            terminated_by: str,
-        ):
-            pipeline_run_service.terminate(
-                session=session,
-                id=id,
-                terminated_by=terminated_by,
-                skip_user_check=False,
-            )
+    # The `terminated_by` parameter value now comes from a Dependency (instead of request)
+    # We also allow admin users to cancel any run
+    def pipeline_run_cancel(
+        session: SessionDep,
+        id: backend_types_sql.IdType,
+        user_details: typing.Annotated[UserDetails, get_user_details_dependency],
+    ):
+        terminated_by = user_details.name
+        if user_details and user_details and user_details.permissions.get("admin"):
+            skip_user_check = True
+        else:
+            skip_user_check = False
+        pipeline_run_service.terminate(
+            session=session,
+            id=id,
+            terminated_by=terminated_by,
+            skip_user_check=skip_user_check,
+        )
 
     router.post(
         "/api/pipeline_runs/{id}/cancel",
@@ -325,12 +290,11 @@ def setup_routes(
     pipeline_run_set_annotation_func = inject_user_name(
         func=pipeline_run_set_annotation_func
     )
-    if user_has_admin_permission_dependency:
-        pipeline_run_set_annotation_func = add_parameter_annotation_metadata(
-            pipeline_run_set_annotation_func,
-            parameter_name="skip_user_check",
-            annotation_metadata=user_has_admin_permission_dependency,
-        )
+    pipeline_run_set_annotation_func = add_parameter_annotation_metadata(
+        pipeline_run_set_annotation_func,
+        parameter_name="skip_user_check",
+        annotation_metadata=user_has_admin_permission_dependency,
+    )
     router.put(
         "/api/pipeline_runs/{id}/annotations/{key}",
         tags=["pipelineRuns"],
@@ -344,12 +308,11 @@ def setup_routes(
     pipeline_run_delete_annotation_func = inject_user_name(
         func=pipeline_run_delete_annotation_func
     )
-    if user_has_admin_permission_dependency:
-        pipeline_run_delete_annotation_func = add_parameter_annotation_metadata(
-            pipeline_run_delete_annotation_func,
-            parameter_name="skip_user_check",
-            annotation_metadata=user_has_admin_permission_dependency,
-        )
+    pipeline_run_delete_annotation_func = add_parameter_annotation_metadata(
+        pipeline_run_delete_annotation_func,
+        parameter_name="skip_user_check",
+        annotation_metadata=user_has_admin_permission_dependency,
+    )
     router.delete(
         "/api/pipeline_runs/{id}/annotations/{key}",
         tags=["pipelineRuns"],
@@ -437,9 +400,7 @@ def setup_routes(
         tags=["admin"],
         # Hiding the admin methods from the public schema.
         # include_in_schema=False,
-        dependencies=(
-            [ensure_admin_user_dependency] if ensure_admin_user_dependency else None
-        ),
+        dependencies=[ensure_admin_user_dependency],
         **default_config,
     )
     def admin_set_read_only_model(read_only: bool):
@@ -451,9 +412,7 @@ def setup_routes(
         tags=["admin"],
         # Hiding the admin methods from the public schema.
         # include_in_schema=False,
-        dependencies=(
-            [ensure_admin_user_dependency] if ensure_admin_user_dependency else None
-        ),
+        dependencies=[ensure_admin_user_dependency],
         **default_config,
     )
     def admin_set_execution_node_status(
