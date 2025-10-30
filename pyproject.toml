@@ -13,6 +13,9 @@ dependencies = [
 ]
 
 [dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+]
 huggingface = [
     "huggingface-hub[oauth]>=0.35.3",
 ]
