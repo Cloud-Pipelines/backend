@@ -19,3 +19,7 @@ dev = [
 huggingface = [
     "huggingface-hub[oauth]>=0.35.3",
 ]
+
+[tool.setuptools.packages.find]
+include = ["cloud_pipelines_backend*"]
+namespaces = true
