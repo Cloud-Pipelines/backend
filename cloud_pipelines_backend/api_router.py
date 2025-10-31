@@ -45,6 +45,13 @@ def setup_routes(
             content={"message": str(exc)},
         )
 
+    @app.exception_handler(errors.PermissionError)
+    def handle_permission_error(request: fastapi.Request, exc: errors.PermissionError):
+        return fastapi.responses.JSONResponse(
+            status_code=403,
+            content={"message": str(exc)},
+        )
+
     get_user_details_dependency = fastapi.Depends(user_details_getter)
 
     def get_user_name(
