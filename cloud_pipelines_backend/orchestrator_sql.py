@@ -35,7 +35,9 @@ class OrchestratorService_Sql:
     def __init__(
         self,
         session_factory: typing.Callable[[], orm.Session],
-        launcher: launcher_interfaces.ContainerTaskLauncher,
+        launcher: launcher_interfaces.ContainerTaskLauncher[
+            launcher_interfaces.LaunchedContainer
+        ],
         storage_provider: storage_provider_interfaces.StorageProvider,
         data_root_uri: str,
         logs_root_uri: str,
@@ -211,27 +213,38 @@ class OrchestratorService_Sql:
         )
 
         # Trying to reuse an older execution from cache.
-        # TODO: Support cache reuse options (max cached data staleness etc).
-        execution_candidates = session.scalars(
-            sql.select(bts.ExecutionNode)
-            .where(bts.ExecutionNode.container_execution_cache_key == cache_key)
-            .where(
-                bts.ExecutionNode.container_execution_status.in_(
-                    [
-                        # We can reuse both succeeded executions and also non yet finished ones.
-                        # Reusing still running executions is important since it allows cache reuse
-                        # when multiple versions of a pipeline are submitted in parallel.
-                        # bts.ContainerExecutionStatus.STARTING,  # Doesn't exist yet
-                        bts.ContainerExecutionStatus.PENDING,
-                        bts.ContainerExecutionStatus.RUNNING,
-                        bts.ContainerExecutionStatus.SUCCEEDED,
-                    ]
-                )
+        max_cache_staleness_str: str | None = None
+        if task_spec.execution_options and task_spec.execution_options.caching_strategy:
+            max_cache_staleness_str = (
+                task_spec.execution_options.caching_strategy.max_cache_staleness
             )
-            # TODO: Filter by purged==False. Or `expires_at`.
-            .join(bts.ContainerExecution)
-            .order_by(bts.ContainerExecution.created_at)
-        ).all()
+
+        # TODO: Support other ways to express 0-length time period.
+        if max_cache_staleness_str == "P0D":
+            execution_candidates: typing.Sequence[bts.ExecutionNode] = []
+        else:
+            # TODO: Support cache reuse options (max cached data staleness etc).
+            # TODO: It might be better to search for ContainerExecutions rather than ExecutionNodes.
+            execution_candidates = session.scalars(
+                sql.select(bts.ExecutionNode)
+                .where(bts.ExecutionNode.container_execution_cache_key == cache_key)
+                .where(
+                    bts.ExecutionNode.container_execution_status.in_(
+                        [
+                            # We can reuse both succeeded executions and also non yet finished ones.
+                            # Reusing still running executions is important since it allows cache reuse
+                            # when multiple versions of a pipeline are submitted in parallel.
+                            # bts.ContainerExecutionStatus.STARTING,  # Doesn't exist yet
+                            bts.ContainerExecutionStatus.PENDING,
+                            bts.ContainerExecutionStatus.RUNNING,
+                            bts.ContainerExecutionStatus.SUCCEEDED,
+                        ]
+                    )
+                )
+                # TODO: Filter by purged==False. Or `expires_at`.
+                .join(bts.ContainerExecution)
+                .order_by(bts.ContainerExecution.created_at.desc())
+            ).all()
         non_purged_candidates = [
             execution_candidate
             for execution_candidate in execution_candidates
@@ -255,7 +268,12 @@ class OrchestratorService_Sql:
 
         if non_purged_candidates:
             # Re-using the oldest candidate
-            old_execution = non_purged_candidates[0]
+            # TODO: Use better cached execution selection strategy:
+            # 1. Try to reuse the execution with `max_cache_staleness in extra_data["used_for_max_cache_staleness"]`. There should be 0 or 1 of those.
+            # 2. Else: Try to reuse the latest SUCCEEDED execution. Mark it `extra_data["used_for_max_cache_staleness"][max_cache_staleness] = True`.
+            # 3. Else: Try to reuse the latest RUNNING/PENDING execution. Mark it `extra_data["used_for_max_cache_staleness"][max_cache_staleness] = True`.
+            # There must be at least one SUCCEEDED/RUNNING/PENDING since non_purged_candidates is non-empty.
+            old_execution = non_purged_candidates[-1]
             _logger.info(
                 f"Execution {execution.id=} will reuse the {old_execution.id=} with "
                 f"{old_execution.container_execution_id=}, {old_execution.container_execution_status=}"
@@ -458,8 +476,8 @@ class OrchestratorService_Sql:
                 )
             )
             if launched_container.status not in (
-                bts.ContainerExecutionStatus.PENDING,
-                bts.ContainerExecutionStatus.RUNNING,
+                launcher_interfaces.ContainerStatus.PENDING,
+                launcher_interfaces.ContainerStatus.RUNNING,
             ):
                 raise OrchestratorError(
                     f"Unexpected status of just launched container: {launched_container.status=}, {launched_container=}"
@@ -481,7 +499,7 @@ class OrchestratorService_Sql:
         current_time = _get_current_time()
 
         container_execution = bts.ContainerExecution(
-            status=bts.ContainerExecutionStatus.PENDING,
+            status=bts.ContainerExecutionStatus(launched_container.status),
             last_processed_at=current_time,
             created_at=current_time,
             launcher_data=launched_container.to_dict(),
@@ -514,7 +532,7 @@ class OrchestratorService_Sql:
             session.add(container_execution)
             execution.container_execution = container_execution
             execution.container_execution_cache_key = cache_key
-            execution.container_execution_status = bts.ContainerExecutionStatus.PENDING
+            execution.container_execution_status = container_execution.status
             # TODO: Maybe add artifact value and URI to input ArtifactData.
 
     def internal_process_one_running_execution(
@@ -724,7 +742,12 @@ class OrchestratorService_Sql:
                     output_name: bts.ArtifactData(
                         total_size=data_info.total_size,
                         is_dir=data_info.is_dir,
-                        hash="md5=" + data_info.hashes["md5"],
+                        # Using 1st hash only.
+                        # TODO: Support multiple hashes.
+                        hash=[
+                            f"{hash_name}={hash_value}"
+                            for hash_name, hash_value in data_info.hashes.items()
+                        ][0],
                         uri=output_artifact_uris[output_name],
                         # Preloading artifact value is it's small enough (e.g. <=255 bytes)
                         value=_retry(

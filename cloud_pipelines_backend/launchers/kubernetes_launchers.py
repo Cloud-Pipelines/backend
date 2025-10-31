@@ -509,7 +509,7 @@ class KubernetesWithHostPathContainerLauncher(_KubernetesContainerLauncher):
 
 
 class KubernetesWithGcsFuseContainerLauncher(_KubernetesContainerLauncher):
-    """Launcher that uses single-node Kubernetes (uses GKE-gcsfuse driver for data passing)"""
+    """Launcher that uses GKE Kubernetes (uses GKE-gcsfuse driver for data passing)"""
 
     def __init__(
         self,

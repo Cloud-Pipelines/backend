@@ -52,6 +52,17 @@ def test_published_component_service():
     all_published_components = published_component_service.list().published_components
     assert len(all_published_components) == 1
 
+    # Test component search by digest
+    assert (
+        len(
+            published_component_service.list(
+                digest=published_component.digest
+            ).published_components
+        )
+        == 1
+    )
+    assert len(published_component_service.list(digest="XXX").published_components) == 0
+
     # Test component search by name substring
     filtered_published_components_1 = published_component_service.list(
         name_substring="comp"

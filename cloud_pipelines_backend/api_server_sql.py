@@ -368,9 +368,10 @@ def _parse_filter(filter: str) -> dict[str, str]:
     return parsed_filter
 
 
-# ========== ExecutionNodeApiService_Mongo
+# ========== ExecutionNodeApiService_Sql
 
-
+# TODO: Use _storage_provider.calculate_hash(path)
+# Hashing of constant arguments should the use same algorithm as caching of the output artifacts.
 def _calculate_hash(s: str) -> str:
     import hashlib
 
@@ -715,7 +716,7 @@ class ExecutionNodesApiService_Sql:
         self,
         session: orm.Session,
         id: bts.IdType,
-        container_launcher: "launcher_interfaces.ContainerTaskLauncher | None" = None,
+        container_launcher: "launcher_interfaces.ContainerTaskLauncher[launcher_interfaces.LaunchedContainer] | None" = None,
     ) -> GetContainerExecutionLogResponse:
         execution = session.get(bts.ExecutionNode, id)
         if not execution:
@@ -837,6 +838,13 @@ def _read_container_execution_log_from_uri(log_uri: str):
         gcs_client = storage.Client()
         blob = storage.Blob.from_string(log_uri, client=gcs_client)
         log_text = blob.download_as_text()
+        return log_text
+    elif log_uri.startswith("hf://"):
+        from cloud_pipelines_backend.storage_providers import huggingface_repo_storage
+
+        storage_provider = huggingface_repo_storage.HuggingFaceRepoStorageProvider()
+        uri_accessor = storage_provider.parse_uri_get_accessor(uri_string=log_uri)
+        log_text = uri_accessor.get_reader().download_as_text()
         return log_text
     else:
         raise NotImplementedError(

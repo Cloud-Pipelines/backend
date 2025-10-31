@@ -6,6 +6,7 @@ from typing import Any
 
 import sqlalchemy as sql
 from sqlalchemy import orm
+from sqlalchemy.ext import mutable
 
 IdType: typing.TypeAlias = str
 
@@ -78,15 +79,17 @@ class _TableBase(orm.MappedAsDataclass, orm.DeclarativeBase, kw_only=True):
     # Not really needed due to kw_only=True
     _: dataclasses.KW_ONLY
 
+    # The mutable.MutableDict.as_mutable construct ensures that changes to dictionaries are picked up.
+    # This is very important when making changes to `extra_data` dictionaries.
     type_annotation_map = {
-        dict: sql.JSON,
-        list: sql.JSON,
+        dict: mutable.MutableDict.as_mutable(sql.JSON),
+        list: mutable.MutableList.as_mutable(sql.JSON),
         # List: sql.JSON,
         # List[int]: sql.JSON,
-        list[int]: sql.JSON,
-        list[str]: sql.JSON,
+        list[int]: mutable.MutableList.as_mutable(sql.JSON),
+        list[str]: mutable.MutableList.as_mutable(sql.JSON),
         # List[DataVersionDict]: sql.JSON,
-        dict[str, Any]: sql.JSON,
+        dict[str, Any]: mutable.MutableDict.as_mutable(sql.JSON),
         # structures._BaseModel: sql.JSON,
         # structures.ComponentSpec: sql.JSON,
         # structures.TaskSpec: sql.JSON,
@@ -358,7 +361,7 @@ class ExecutionNode(_TableBase):
         orm.mapped_column(default=None, index=True)
     )
     container_execution_cache_key: orm.Mapped[str | None] = orm.mapped_column(
-        default=None
+        index=True, default=None
     )
 
     # ? UX-only de-normalized
