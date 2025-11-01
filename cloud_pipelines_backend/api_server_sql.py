@@ -131,10 +131,9 @@ class PipelineRunsApiService_Sql:
                 f"The pipeline run {id} was started by {pipeline_run.created_by} and cannot be terminated by {terminated_by}"
             )
         # Marking the pipeline run for termination
-        pipeline_run.extra_data = pipeline_run_extra_data = (
-            pipeline_run.extra_data or {}
-        )
-        pipeline_run_extra_data["desired_state"] = "TERMINATED"
+        if pipeline_run.extra_data is None:
+            pipeline_run.extra_data = {}
+        pipeline_run.extra_data["desired_state"] = "TERMINATED"
 
         # Marking all running executions belonging to the run for termination
         running_execution_nodes = [
@@ -149,10 +148,9 @@ class PipelineRunsApiService_Sql:
             )
         ]
         for execution_node in running_execution_nodes:
-            execution_node.extra_data = execution_extra_data = (
-                execution_node.extra_data or {}
-            )
-            execution_extra_data["desired_state"] = "TERMINATED"
+            if execution_node.extra_data is None:
+                execution_node.extra_data = {}
+            execution_node.extra_data["desired_state"] = "TERMINATED"
         session.commit()
 
     # Note: This method must be last to not shadow the "list" type
@@ -369,6 +367,7 @@ def _parse_filter(filter: str) -> dict[str, str]:
 
 
 # ========== ExecutionNodeApiService_Sql
+
 
 # TODO: Use _storage_provider.calculate_hash(path)
 # Hashing of constant arguments should the use same algorithm as caching of the output artifacts.
