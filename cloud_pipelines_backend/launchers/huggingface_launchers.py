@@ -31,12 +31,14 @@ class HuggingFaceJobsContainerLauncher(
         self,
         *,
         client: Optional[huggingface_hub.HfApi] = None,
+        hf_token: Optional[str] = None,
         hf_job_token: Optional[str] = None,
         job_timeout: Optional[int | float | str] = None,
     ):
         # The HF Jobs that we launch need token to write the output artifacts and logs
-        hf_job_token = hf_job_token or huggingface_hub.get_token()
-        self._api_client = client or huggingface_hub.HfApi()
+        hf_token = hf_token or huggingface_hub.get_token()
+        hf_job_token = hf_job_token or hf_token
+        self._api_client = client or huggingface_hub.HfApi(token=hf_token)
         self._storage_provider = (
             huggingface_repo_storage.HuggingFaceRepoStorageProvider()
         )
