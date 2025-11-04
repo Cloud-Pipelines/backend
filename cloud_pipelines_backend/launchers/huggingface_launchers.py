@@ -243,7 +243,9 @@ exit_code_path='{exit_code_path}'
 mkdir -p "$(dirname "$log_path")"
 mkdir -p "$(dirname "$exit_code_path")"
 # We need to capture the exit code while piping the stderr and stdout to a log file. Not all shells support `${{PIPEFAIL[0]}}`
+set +e
 {{ "$0" "$@"; echo $? >"$exit_code_path";}} 2>&1 | tee "$log_path"
+set -e
 
 exit_code=`cat "$exit_code_path"`
 
