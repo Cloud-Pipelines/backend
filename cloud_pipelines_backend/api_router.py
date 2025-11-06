@@ -102,6 +102,13 @@ def setup_routes(
         with orm.Session(autocommit=False, autoflush=False, bind=db_engine) as session:
             yield session
 
+    SessionDep = typing.Annotated[orm.Session, fastapi.Depends(get_session)]
+
+    def inject_session_dependency(func: typing.Callable) -> typing.Callable:
+        return replace_annotations(
+            func, original_annotation=orm.Session, new_annotation=SessionDep
+        )
+
     def create_db_and_tables():
         backend_types_sql._TableBase.metadata.create_all(db_engine)
 
@@ -151,17 +158,15 @@ def setup_routes(
         response_model_exclude_none=True,
     )
 
-    SessionDep = typing.Annotated[orm.Session, fastapi.Depends(get_session)]
-
     router.get("/api/artifacts/{id}", tags=["artifacts"], **default_config)(
         # functools.partial(print_annotations(artifact_service.get), session=fastapi.Depends(get_session))
-        replace_annotations(artifact_service.get, orm.Session, SessionDep)
+        inject_session_dependency(artifact_service.get)
     )
     router.get("/api/executions/{id}/details", tags=["executions"], **default_config)(
         replace_annotations(execution_service.get, orm.Session, SessionDep)
     )
-    get_graph_execution_state = replace_annotations(
-        execution_service.get_graph_execution_state, orm.Session, SessionDep
+    get_graph_execution_state = inject_session_dependency(
+        execution_service.get_graph_execution_state
     )
     # Deprecated
     router.get("/api/executions/{id}/state", tags=["executions"], **default_config)(
@@ -174,13 +179,9 @@ def setup_routes(
     )(get_graph_execution_state)
     router.get(
         "/api/executions/{id}/container_state", tags=["executions"], **default_config
-    )(
-        replace_annotations(
-            execution_service.get_container_execution_state, orm.Session, SessionDep
-        )
-    )
+    )(inject_session_dependency(execution_service.get_container_execution_state))
     router.get("/api/executions/{id}/artifacts", tags=["executions"], **default_config)(
-        replace_annotations(execution_service.get_artifacts, orm.Session, SessionDep)
+        inject_session_dependency(execution_service.get_artifacts)
     )
 
     @router.get(
@@ -228,15 +229,15 @@ def setup_routes(
         )
 
     router.get("/api/pipeline_runs/", tags=["pipelineRuns"], **default_config)(
-        replace_annotations(list_pipeline_runs_func, orm.Session, SessionDep)
+        inject_session_dependency(list_pipeline_runs_func)
     )
     router.get("/api/pipeline_runs/{id}", tags=["pipelineRuns"], **default_config)(
-        replace_annotations(pipeline_run_service.get, orm.Session, SessionDep)
+        inject_session_dependency(pipeline_run_service.get)
     )
 
     create_run_func = pipeline_run_service.create
     # The `session` parameter value now comes from a Dependency (instead of request)
-    create_run_func = replace_annotations(create_run_func, orm.Session, SessionDep)
+    create_run_func = inject_session_dependency(create_run_func)
     # The `created_by` parameter value now comes from a Dependency (instead of request)
     create_run_func = add_parameter_annotation_metadata(
         create_run_func,
@@ -253,11 +254,7 @@ def setup_routes(
 
     router.get(
         "/api/artifacts/{id}/signed_artifact_url", tags=["artifacts"], **default_config
-    )(
-        replace_annotations(
-            artifact_service.get_signed_artifact_url, orm.Session, SessionDep
-        )
-    )
+    )(inject_session_dependency(artifact_service.get_signed_artifact_url))
 
     # The `terminated_by` parameter value now comes from a Dependency (instead of request)
     # We also allow admin users to cancel any run
@@ -289,14 +286,10 @@ def setup_routes(
 
     router.get(
         "/api/pipeline_runs/{id}/annotations/", tags=["pipelineRuns"], **default_config
-    )(
-        replace_annotations(
-            pipeline_run_service.list_annotations, orm.Session, SessionDep
-        )
-    )
+    )(inject_session_dependency(pipeline_run_service.list_annotations))
 
-    pipeline_run_set_annotation_func = replace_annotations(
-        pipeline_run_service.set_annotation, orm.Session, SessionDep
+    pipeline_run_set_annotation_func = inject_session_dependency(
+        pipeline_run_service.set_annotation
     )
     pipeline_run_set_annotation_func = inject_user_name(
         func=pipeline_run_set_annotation_func
@@ -313,8 +306,8 @@ def setup_routes(
         **default_config,
     )(pipeline_run_set_annotation_func)
 
-    pipeline_run_delete_annotation_func = replace_annotations(
-        pipeline_run_service.delete_annotation, orm.Session, SessionDep
+    pipeline_run_delete_annotation_func = inject_session_dependency(
+        pipeline_run_service.delete_annotation
     )
     pipeline_run_delete_annotation_func = inject_user_name(
         func=pipeline_run_delete_annotation_func
