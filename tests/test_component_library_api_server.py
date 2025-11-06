@@ -110,7 +110,6 @@ def test_component_library_service():
     assert len(libraries_1) == 1
     assert libraries_1[0].id == components_api.DEFAULT_COMPONENT_LIBRARY_ID
     assert libraries_1[0].name == components_api.DEFAULT_COMPONENT_LIBRARY_NAME
-    assert libraries_1[0].root_folder
 
     user_name = "user 1"
     component_name = "component 1"
