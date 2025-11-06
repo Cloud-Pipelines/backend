@@ -383,7 +383,7 @@ class ComponentLibraryRow(bts._TableBase):
 
         component_library_row = ComponentLibraryRow(
             name=name,
-            root_folder=ComponentLibraryFolder(name=name).to_dict(),
+            root_folder=ComponentLibraryFolder(name=name).to_json_dict(),
             created_at=current_time,
             updated_at=current_time,
             published_by=user_name,
@@ -422,7 +422,7 @@ class ComponentLibraryResponse:
             id=component_library_row.id,
             name=component_library_row.name,
             root_folder=(
-                ComponentLibraryFolder.from_dict(component_library_row.root_folder)
+                ComponentLibraryFolder.from_json_dict(component_library_row.root_folder)
                 if include_root_folder
                 else None
             ),
@@ -559,7 +559,7 @@ class ComponentLibraryService:
         current_time = _get_current_time()
         library_row = ComponentLibraryRow(
             name=library.name,
-            root_folder=library.root_folder.to_dict(),
+            root_folder=library.root_folder.to_json_dict(),
             created_at=current_time,
             updated_at=current_time,
             published_by=user_name,
