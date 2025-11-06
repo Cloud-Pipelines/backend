@@ -1,0 +1,51 @@
+name: Run tests on push
+
+# https://docs.astral.sh/uv/guides/integration/github/
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - stable
+      - dev
+    paths:
+      - "**.py"
+      - "**.toml"
+      - ".github/workflows/**/*.yaml"
+
+jobs:
+  uv-pytest:
+    name: python
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version:
+          - "3.10"
+          - "3.13"
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: auto
+          cache-suffix: ${{ matrix.python-version }}
+
+      - name: Install the project
+        run: uv sync --locked --all-extras --dev
+
+      - name: Run tests
+        # Without "--with ." we get `ModuleNotFoundError` for the main module
+        run: uv run --with . pytest tests --verbose --junitxml=junit/test-results-${{ matrix.python-version }}.xml
+
+      - name: Upload pytest test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-results-${{ matrix.python-version }}
+          path: junit/test-results-${{ matrix.python-version }}.xml
+        # Use always() to always run this step to publish test results when there are test failures
+        if: ${{ always() }}
