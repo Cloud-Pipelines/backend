@@ -163,7 +163,7 @@ def setup_routes(
         inject_session_dependency(artifact_service.get)
     )
     router.get("/api/executions/{id}/details", tags=["executions"], **default_config)(
-        replace_annotations(execution_service.get, orm.Session, SessionDep)
+        inject_session_dependency(execution_service.get)
     )
     get_graph_execution_state = inject_session_dependency(
         execution_service.get_graph_execution_state
