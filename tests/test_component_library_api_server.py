@@ -1,10 +1,10 @@
-import sqlalchemy
 from sqlalchemy import orm
 import yaml
 import pytest
 
 from cloud_pipelines_backend import component_structures
 from cloud_pipelines_backend import component_library_api_server as components_api
+from cloud_pipelines_backend import database_ops
 from cloud_pipelines_backend import errors
 
 
@@ -23,8 +23,7 @@ def _make_component_text(name: str):
 
 
 def _initialize_db_and_get_session_factory():
-    db_engine = sqlalchemy.create_engine("sqlite://")
-    components_api.bts._TableBase.metadata.create_all(bind=db_engine)
+    db_engine = database_ops.create_db_engine_and_migrate_db(database_uri="sqlite://")
     return lambda: orm.Session(bind=db_engine)
 
 
