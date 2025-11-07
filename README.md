@@ -1,11 +1,14 @@
-# Tangle backend
+# Tangle
 
 The Tangle system helps users create and run ML experiments and production pipelines.
 Any batch workflow that has beginning and end can be orchestrated via a pipeline.
 
 [Install the app](#installation)
 
-[![image](https://github.com/user-attachments/assets/0ce7ccc0-dad7-4f6a-8677-f2adcd83f558)](https://cloud-pipelines.net/pipeline-studio-app)
+![image](https://github.com/user-attachments/assets/0ce7ccc0-dad7-4f6a-8677-f2adcd83f558)
+<!--
+[![image](https://github.com/user-attachments/assets/0ce7ccc0-dad7-4f6a-8677-f2adcd83f558)](https://tangleml-tangle.hf.space)
+-->
 
 ## Installation
 
@@ -15,8 +18,8 @@ Any batch workflow that has beginning and end can be orchestrated via a pipeline
 2. Download the app code (needs to be done once):
 
 ```shell
-git clone https://github.com/Cloud-Pipelines/backend.git tangle/backend --branch stable
-git clone https://github.com/Cloud-Pipelines/pipeline-studio-app.git tangle/frontend_build --branch gh_pages_stable --single-branch --depth 1
+git clone https://github.com/TangleML/tangle.git tangle/backend --branch stable
+git clone https://github.com/TangleML/tangle-ui.git tangle/frontend_build --branch gh_pages_stable --single-branch --depth 1
 ```
 
 3. Start the app:
@@ -29,7 +32,7 @@ cd tangle && backend/start_local.sh
 
 Windows:
 
-```shell
+```bat
 cd tangle && backend\start_local.cmd
 ```
 
@@ -44,8 +47,8 @@ Click the "New Pipeline" button at the top to start building a new pipeline.
 2. Download the app code (needs to be done once):
 
 ```shell
-git clone https://github.com/Cloud-Pipelines/backend.git tangle/backend --branch stable
-git clone https://github.com/Cloud-Pipelines/pipeline-studio-app.git tangle/frontend_build --branch gh_pages_stable --single-branch --depth 1
+git clone https://github.com/TangleML/tangle.git tangle/backend --branch stable
+git clone https://github.com/TangleML/tangle-ui.git tangle/frontend_build --branch gh_pages_stable --single-branch --depth 1
 ```
 
 3. Start the app:
@@ -107,4 +110,4 @@ More launchers may be added in the future.
 
 ### Credits
 
-This [Tangle Pipelines](https://github.com/Cloud-Pipelines/tangle) [backend](https://github.com/Cloud-Pipelines/backend) is created by [Alexey Volkov](https://github.com/Ark-kun) as part of the [Cloud Pipelines](https://github.com/Cloud-Pipelines) project. It's derived from the [Cloud Pipelines SDK](https://github.com/Cloud-Pipelines/sdk) orchestrator and uses parts of it under the hood.
+This [Tangle Pipelines](https://github.com/TangleML/tangle) [backend](https://github.com/Cloud-Pipelines/backend) is created by [Alexey Volkov](https://github.com/Ark-kun) as part of the [Cloud Pipelines](https://github.com/Cloud-Pipelines) project. It's derived from the [Cloud Pipelines SDK](https://github.com/Cloud-Pipelines/sdk) orchestrator and uses parts of it under the hood.
