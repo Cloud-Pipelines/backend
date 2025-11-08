@@ -31,6 +31,7 @@ class HuggingFaceJobsContainerLauncher(
         self,
         *,
         client: Optional[huggingface_hub.HfApi] = None,
+        namespace: Optional[str] = None,
         hf_token: Optional[str] = None,
         hf_job_token: Optional[str] = None,
         job_timeout: Optional[int | float | str] = None,
@@ -39,6 +40,7 @@ class HuggingFaceJobsContainerLauncher(
         hf_token = hf_token or huggingface_hub.get_token()
         hf_job_token = hf_job_token or hf_token
         self._api_client = client or huggingface_hub.HfApi(token=hf_token)
+        self._namespace: str = namespace or self._api_client.whoami()["name"]
         self._storage_provider = (
             huggingface_repo_storage.HuggingFaceRepoStorageProvider()
         )
@@ -46,7 +48,7 @@ class HuggingFaceJobsContainerLauncher(
         self._hf_job_token = hf_job_token
         # Test the access
         # _ = self._api_client.list_models(filter="non-existing")
-        _ = self._api_client.list_jobs()
+        _ = self._api_client.list_jobs(namespace=self._namespace)
 
     def launch_container_task(
         self,
@@ -257,7 +259,6 @@ exit "$exit_code"
 
         container_env = container_spec.env or {}
 
-        namespace: str = self._api_client.whoami()["name"]
         # Passing HF token to the Job
         secrets: dict[str, str] = {}
         if self._hf_job_token:
@@ -270,7 +271,7 @@ exit "$exit_code"
             command=command_line,
             env=dict(container_env),
             timeout=self._job_timeout,
-            namespace=namespace,
+            namespace=self._namespace,
             secrets=secrets,
             # flavor=...,
         )
@@ -278,7 +279,7 @@ exit "$exit_code"
         _logger.debug(f"Launched HF Job {job.id=}")
         launched_container = LaunchedHuggingFaceJobContainer(
             id=job.id,
-            namespace=namespace,
+            namespace=self._namespace,
             job=job,
             output_uris=output_uris,
             log_uri=log_uri,
