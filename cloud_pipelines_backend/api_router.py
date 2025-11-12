@@ -1,3 +1,4 @@
+from collections import abc
 import contextlib
 import dataclasses
 import typing
@@ -6,6 +7,8 @@ import typing_extensions
 import fastapi
 import sqlalchemy
 from sqlalchemy import orm
+import starlette.types
+
 
 from . import api_server_sql
 from . import backend_types_sql
@@ -35,6 +38,46 @@ def setup_routes(
     user_details_getter: typing.Callable[..., UserDetails],
     container_launcher_for_log_streaming: "launcher_interfaces.ContainerTaskLauncher[launcher_interfaces.LaunchedContainer] | None" = None,
     default_component_library_owner_username: str = "admin",
+):
+    def get_session():
+        with orm.Session(autocommit=False, autoflush=False, bind=db_engine) as session:
+            yield session
+
+    def create_db_and_tables():
+        database_ops.initialize_and_migrate_db(db_engine=db_engine)
+
+        # The default library must be initialized here, not when adding the Component Library routes.
+        # Otherwise the tables won't yet exist when initialization is performed.
+        component_library_service = components_api.ComponentLibraryService()
+        with orm.Session(bind=db_engine) as session:
+            component_library_service._initialize_empty_default_library_if_missing(
+                session=session,
+                published_by=default_component_library_owner_username,
+            )
+
+    @contextlib.asynccontextmanager
+    async def lifespan(app: fastapi.FastAPI):
+        create_db_and_tables()
+        yield
+
+    _setup_routes_internal(
+        app=app,
+        get_session=get_session,
+        user_details_getter=user_details_getter,
+        container_launcher_for_log_streaming=container_launcher_for_log_streaming,
+        lifespan=lifespan,
+    )
+
+
+def _setup_routes_internal(
+    app: fastapi.FastAPI,
+    get_session: (
+        typing.Callable[..., orm.Session]
+        | typing.Callable[..., abc.Iterator[orm.Session]]
+    ),
+    user_details_getter: typing.Callable[..., UserDetails],
+    container_launcher_for_log_streaming: "launcher_interfaces.ContainerTaskLauncher[launcher_interfaces.LaunchedContainer] | None" = None,
+    lifespan: starlette.types.Lifespan[typing.Any] | None = None,
 ):
     # We request `app: fastapi.FastAPI` instead of just returning the router
     # because we want to add exception handler which is only supported for `FastAPI`.
@@ -99,29 +142,11 @@ def setup_routes(
             annotation_metadata=get_user_name_dependency,
         )
 
-    def get_session():
-        with orm.Session(autocommit=False, autoflush=False, bind=db_engine) as session:
-            yield session
-
     SessionDep = typing.Annotated[orm.Session, fastapi.Depends(get_session)]
 
     def inject_session_dependency(func: typing.Callable) -> typing.Callable:
         return replace_annotations(
             func, original_annotation=orm.Session, new_annotation=SessionDep
-        )
-
-    def create_db_and_tables():
-        database_ops.initialize_and_migrate_db(db_engine=db_engine)
-
-        # The default library must be initialized here, not when adding the Component Library routes.
-        # Otherwize the tables won't yet exist when initialization is performed.
-        session_factory = lambda: orm.Session(
-            autocommit=False, autoflush=False, bind=db_engine
-        )
-        component_library_service = components_api.ComponentLibraryService()
-        component_library_service._initialize_empty_default_library_if_missing(
-            session=session_factory(),
-            published_by=default_component_library_owner_username,
         )
 
     artifact_service = api_server_sql.ArtifactNodesApiService_Sql()
@@ -143,11 +168,6 @@ def setup_routes(
     ]
 
     # === API ===
-
-    @contextlib.asynccontextmanager
-    async def lifespan(app: fastapi.FastAPI):
-        create_db_and_tables()
-        yield
 
     router = fastapi.APIRouter(
         lifespan=lifespan,
