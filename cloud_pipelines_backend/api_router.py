@@ -328,7 +328,7 @@ def setup_routes(
 
     @dataclasses.dataclass
     class GetUserResponse:
-        id: str
+        id: str | None
         permissions: list[str]
 
     @router.get("/api/users/me", tags=["users"])
