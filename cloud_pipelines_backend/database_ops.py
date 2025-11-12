@@ -62,7 +62,18 @@ def migrate_db(db_engine: sqlalchemy.Engine):
     #     bts.PipelineRun.created_at.desc(),
     # ).create(db_engine, checkfirst=True)
 
-    sqlalchemy.Index(
-        "ix_execution_node_container_execution_cache_key",
-        bts.ExecutionNode.container_execution_cache_key,
-    ).create(db_engine, checkfirst=True)
+    # index1 = sqlalchemy.Index(
+    #     "ix_execution_node_container_execution_cache_key",
+    #     bts.ExecutionNode.container_execution_cache_key,
+    # )
+    # index1.create(db_engine, checkfirst=True)
+    # SqlAlchemy's Index constructor is broken and adds indexes to the table definition (even if they are duplicate)
+    # See https://github.com/sqlalchemy/sqlalchemy/issues/12965
+    # See https://github.com/sqlalchemy/sqlalchemy/discussions/12420
+    # To work around that issue we either need to remove the index from the table
+    # bts.ExecutionNode.__table__.indexes.remove(index1)
+    # Or we need to avoid calling the Index constructor.
+
+    for index in bts.ExecutionNode.__table__.indexes:
+        if index.name == "ix_execution_node_container_execution_cache_key":
+            index.create(db_engine, checkfirst=True)
