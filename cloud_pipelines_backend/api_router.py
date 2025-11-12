@@ -10,6 +10,7 @@ from sqlalchemy import orm
 from . import api_server_sql
 from . import backend_types_sql
 from . import component_library_api_server as components_api
+from . import database_ops
 from . import errors
 
 if typing.TYPE_CHECKING:
@@ -110,7 +111,7 @@ def setup_routes(
         )
 
     def create_db_and_tables():
-        backend_types_sql._TableBase.metadata.create_all(db_engine)
+        database_ops.initialize_and_migrate_db(db_engine=db_engine)
 
         # The default library must be initialized here, not when adding the Component Library routes.
         # Otherwize the tables won't yet exist when initialization is performed.
