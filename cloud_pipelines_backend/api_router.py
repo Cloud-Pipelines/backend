@@ -118,11 +118,10 @@ def setup_routes(
         session_factory = lambda: orm.Session(
             autocommit=False, autoflush=False, bind=db_engine
         )
-        component_library_service = components_api.ComponentLibraryService(
-            session_factory=session_factory
-        )
+        component_library_service = components_api.ComponentLibraryService()
         component_library_service._initialize_empty_default_library_if_missing(
-            published_by=default_component_library_owner_username
+            session=session_factory(),
+            published_by=default_component_library_owner_username,
         )
 
     artifact_service = api_server_sql.ArtifactNodesApiService_Sql()
@@ -350,53 +349,55 @@ def setup_routes(
 
     ### Component library routes
 
-    session_factory = lambda: orm.Session(
-        autocommit=False, autoflush=False, bind=db_engine
-    )
-
-    component_service = components_api.ComponentService(session_factory=session_factory)
-    published_component_service = components_api.PublishedComponentService(
-        session_factory=session_factory
-    )
-    component_library_service = components_api.ComponentLibraryService(
-        session_factory=session_factory
-    )
-    user_service = components_api.UserService(session_factory=session_factory)
+    component_service = components_api.ComponentService()
+    published_component_service = components_api.PublishedComponentService()
+    component_library_service = components_api.ComponentLibraryService()
+    user_service = components_api.UserService()
 
     router.get("/api/components/{digest}", tags=["components"], **default_config)(
-        component_service.get
+        inject_session_dependency(component_service.get)
     )
-    # router.post("/api/components/", tags=["components"])(component_service.add_from_text)
+    # router.post("/api/components/", tags=["components"])(
+    #     inject_session_dependency(component_service.add_from_text)
+    # )
 
     router.get("/api/published_components/", tags=["components"], **default_config)(
-        published_component_service.list
+        inject_session_dependency(published_component_service.list)
     )
     router.post("/api/published_components/", tags=["components"], **default_config)(
-        inject_user_name(published_component_service.publish)
+        inject_user_name(inject_session_dependency(published_component_service.publish))
     )
     router.put(
         "/api/published_components/{digest}", tags=["components"], **default_config
-    )(inject_user_name(published_component_service.update))
+    )(inject_user_name(inject_session_dependency(published_component_service.update)))
 
     router.get("/api/component_libraries/", tags=["components"], **default_config)(
-        component_library_service.list
+        inject_session_dependency(component_library_service.list)
     )
     router.get("/api/component_libraries/{id}", tags=["components"], **default_config)(
-        component_library_service.get
+        inject_session_dependency(component_library_service.get)
     )
     router.post("/api/component_libraries/", tags=["components"], **default_config)(
-        inject_user_name(component_library_service.create)
+        inject_user_name(inject_session_dependency(component_library_service.create))
     )
     router.put("/api/component_libraries/{id}", tags=["components"], **default_config)(
-        inject_user_name(component_library_service.replace)
+        inject_user_name(inject_session_dependency(component_library_service.replace))
     )
 
     router.get(
         "/api/component_library_pins/me/", tags=["components"], **default_config
-    )(inject_user_name(user_service.get_component_library_pins))
+    )(
+        inject_user_name(
+            inject_session_dependency(user_service.get_component_library_pins)
+        )
+    )
     router.put(
         "/api/component_library_pins/me/", tags=["components"], **default_config
-    )(inject_user_name(user_service.set_component_library_pins))
+    )(
+        inject_user_name(
+            inject_session_dependency(user_service.set_component_library_pins)
+        )
+    )
 
     ### Admin routes
 

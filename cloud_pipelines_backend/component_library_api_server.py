@@ -2,7 +2,6 @@ import copy
 import dataclasses
 import datetime
 import hashlib
-import typing
 from typing import Any
 
 import yaml
@@ -89,48 +88,44 @@ class ListComponentsResponse:
 
 # This service probably should not be exposed directly to the API
 class ComponentService:
-    def __init__(self, session_factory: typing.Callable[[], orm.Session]):
-        self._session_factory = session_factory
-
-    def _list(self, *, name_substring: str | None = None) -> ListComponentsResponse:
+    def _list(
+        self, *, session: orm.Session, name_substring: str | None = None
+    ) -> ListComponentsResponse:
         query = sql.select(ComponentRow)
-        with self._session_factory() as session:
-            component_rows = session.scalars(query).all()
-            return ListComponentsResponse(
-                components=[
-                    ComponentResponse.from_db(component_row)
-                    for component_row in component_rows
-                ]
-            )
-        raise NotImplementedError()
+        component_rows = session.scalars(query).all()
+        return ListComponentsResponse(
+            components=[
+                ComponentResponse.from_db(component_row)
+                for component_row in component_rows
+            ]
+        )
 
-    def get(self, *, digest: str) -> ComponentResponse:
-        with self._session_factory() as session:
-            component_row = session.get(ComponentRow, digest)
-            if not component_row:
-                raise errors.ItemNotFoundError(
-                    f"Component with {digest=} was not found."
-                )
-            return ComponentResponse.from_db(component_row)
+    def get(self, *, session: orm.Session, digest: str) -> ComponentResponse:
+        component_row = session.get(ComponentRow, digest)
+        if not component_row:
+            raise errors.ItemNotFoundError(f"Component with {digest=} was not found.")
+        return ComponentResponse.from_db(component_row)
 
-    def add_from_text(self, *, component_text: str) -> ComponentResponse:
+    def add_from_text(
+        self, *, session: orm.Session, component_text: str
+    ) -> ComponentResponse:
         # TODO: !! validate component
         digest = calculate_digest_for_component_text(component_text)
         component_spec = load_component_spec_from_text_and_validate(component_text)
-        with self._session_factory() as session:
-            component_row = session.get(ComponentRow, digest)
-            if component_row:
-                return ComponentResponse.from_db(component_row)
+        session.rollback()
+        component_row = session.get(ComponentRow, digest)
+        if component_row:
+            return ComponentResponse.from_db(component_row)
 
-            component_row = ComponentRow(
-                digest=digest,
-                text=component_text,
-                spec=component_spec.to_json_dict(),
-            )
-            session.add(component_row)
-            response = ComponentResponse.from_db(component_row)
-            session.commit()
-            return response
+        component_row = ComponentRow(
+            digest=digest,
+            text=component_text,
+            spec=component_spec.to_json_dict(),
+        )
+        session.add(component_row)
+        response = ComponentResponse.from_db(component_row)
+        session.commit()
+        return response
 
 
 # PublishedComponentService
@@ -181,12 +176,10 @@ class ListPublishedComponentsResponse:
 
 
 class PublishedComponentService:
-    def __init__(self, session_factory: typing.Callable[[], orm.Session]):
-        self._session_factory = session_factory
-
     def list(
         self,
         *,
+        session: orm.Session,
         include_deprecated: bool = False,
         name_substring: str | None = None,
         published_by_substring: str | None = None,
@@ -210,19 +203,23 @@ class PublishedComponentService:
                     published_by_substring, autoescape=True
                 )
             )
-        with self._session_factory() as session:
-            published_component_rows = session.scalars(query).all()
-            return ListPublishedComponentsResponse(
-                published_components=[
-                    PublishedComponentResponse.from_db(published_component_row)
-                    for published_component_row in published_component_rows
-                ]
-            )
+        published_component_rows = session.scalars(query).all()
+        return ListPublishedComponentsResponse(
+            published_components=[
+                PublishedComponentResponse.from_db(published_component_row)
+                for published_component_row in published_component_rows
+            ]
+        )
 
     def publish(
-        self, *, component_ref: component_structures.ComponentReference, user_name: str
+        self,
+        *,
+        session: orm.Session,
+        component_ref: component_structures.ComponentReference,
+        user_name: str,
     ) -> PublishedComponentResponse:
-        component_service = ComponentService(self._session_factory)
+        session.rollback()
+        component_service = ComponentService()
         # Ideal: Use Text, else load text from URL, calculate Digest
         # Actual: Use Text else try to get text by Digest.
         # We currently don't load from URL for security reasons.
@@ -231,14 +228,14 @@ class PublishedComponentService:
         digest = None
         if component_text:
             component_response = component_service.add_from_text(
-                component_text=component_text
+                session=session, component_text=component_text
             )
             digest = component_response.digest
         else:
             # We currently don't load from URL for security reasons.
             if component_ref.digest:
                 existing_component_row = component_service.get(
-                    digest=component_ref.digest
+                    session=session, digest=component_ref.digest
                 )
                 if existing_component_row:
                     # Component with such digest already exists int he DB.
@@ -250,50 +247,49 @@ class PublishedComponentService:
                 )
 
         component_spec = load_component_spec_from_text_and_validate(component_text)
-
-        with self._session_factory() as session:
-            # Checking for existence
-            key = (digest, user_name)
-            published_component_row = session.get(PublishedComponentRow, key)
-            if published_component_row:
-                raise errors.ItemAlreadyExistsError(
-                    f"PublishedComponent with {key=} already exists. Use the `update` method to change it."
-                )
-            published_component = PublishedComponentRow(
-                digest=digest,
-                published_by=user_name,
-                name=component_spec.name,
-                url=component_ref.url,
+        # Checking for existence
+        key = (digest, user_name)
+        published_component_row = session.get(PublishedComponentRow, key)
+        if published_component_row:
+            raise errors.ItemAlreadyExistsError(
+                f"PublishedComponent with {key=} already exists. Use the `update` method to change it."
             )
+        published_component = PublishedComponentRow(
+            digest=digest,
+            published_by=user_name,
+            name=component_spec.name,
+            url=component_ref.url,
+        )
 
-            session.add(published_component)
-            response = PublishedComponentResponse.from_db(published_component)
-            session.commit()
-            return response
+        session.add(published_component)
+        response = PublishedComponentResponse.from_db(published_component)
+        session.commit()
+        return response
 
     def update(
         self,
         *,
+        session: orm.Session,
         digest: str,
         user_name: str,
         deprecated: bool | None = None,
         superseded_by: str | None = None,
     ) -> PublishedComponentResponse:
+        session.rollback()
         # TODO: Detect and prevent infinite `superseded_by` loops.
-        with self._session_factory() as session:
-            key = (digest, user_name)
-            published_component_row = session.get(PublishedComponentRow, key)
-            if not published_component_row:
-                raise errors.ItemNotFoundError(
-                    f"PublishedComponent with {key=} was not found."
-                )
-            if deprecated is not None:
-                published_component_row.deprecated = deprecated
-            if superseded_by is not None:
-                published_component_row.superseded_by = superseded_by
-            response = PublishedComponentResponse.from_db(published_component_row)
-            session.commit()
-            return response
+        key = (digest, user_name)
+        published_component_row = session.get(PublishedComponentRow, key)
+        if not published_component_row:
+            raise errors.ItemNotFoundError(
+                f"PublishedComponent with {key=} was not found."
+            )
+        if deprecated is not None:
+            published_component_row.deprecated = deprecated
+        if superseded_by is not None:
+            published_component_row.superseded_by = superseded_by
+        response = PublishedComponentResponse.from_db(published_component_row)
+        session.commit()
+        return response
 
 
 # ComponentLibraryService
@@ -441,11 +437,8 @@ class ListComponentLibrariesResponse:
 
 
 class ComponentLibraryService:
-    def __init__(self, session_factory: typing.Callable[[], orm.Session]):
-        self._session_factory = session_factory
-
     def list(
-        self, *, name_substring: str | None = None
+        self, *, session: orm.Session, name_substring: str | None = None
     ) -> ListComponentLibrariesResponse:
         # TODO: Implement filtering by user, URL
         # TODO: Implement visibility/access control
@@ -456,46 +449,46 @@ class ComponentLibraryService:
             query = query.filter(
                 ComponentLibraryRow.name.icontains(name_substring, autoescape=True)
             )
-
-        with self._session_factory() as session:
-            component_library_rows = session.scalars(query).all()
-            response = ListComponentLibrariesResponse(
-                component_libraries=[
-                    ComponentLibraryResponse.from_db(
-                        component_library_row, include_root_folder=False
-                    )
-                    for component_library_row in component_library_rows
-                ]
-            )
-            return response
+        session.rollback()
+        component_library_rows = session.scalars(query).all()
+        response = ListComponentLibrariesResponse(
+            component_libraries=[
+                ComponentLibraryResponse.from_db(
+                    component_library_row, include_root_folder=False
+                )
+                for component_library_row in component_library_rows
+            ]
+        )
+        return response
 
     def get(
         self,
         *,
+        session: orm.Session,
         id: str,
         include_component_texts: bool = False,
     ) -> ComponentLibraryResponse:
         # TODO: Implement visibility/access control
-        with self._session_factory() as session:
-            library_row = session.get(ComponentLibraryRow, id)
-            if not library_row:
-                # Handling empty user Library
-                if id.startswith(USER_LIBRARY_ID_PREFIX):
-                    library_user_name = id.removeprefix(USER_LIBRARY_ID_PREFIX)
-                    library_row = ComponentLibraryRow.make_empty_user_library(
-                        library_user_name
-                    )
-                else:
-                    raise errors.ItemNotFoundError(
-                        f"ComponentLibrary with {id=} was not found."
-                    )
-            response = ComponentLibraryResponse.from_db(library_row)
-            if include_component_texts:
-                assert response.root_folder
-                ComponentLibraryService._fill_component_texts_for_library_folder(
-                    session=session, library_folder=response.root_folder
+        session.rollback()
+        library_row = session.get(ComponentLibraryRow, id)
+        if not library_row:
+            # Handling empty user Library
+            if id.startswith(USER_LIBRARY_ID_PREFIX):
+                library_user_name = id.removeprefix(USER_LIBRARY_ID_PREFIX)
+                library_row = ComponentLibraryRow.make_empty_user_library(
+                    library_user_name
                 )
-            return response
+            else:
+                raise errors.ItemNotFoundError(
+                    f"ComponentLibrary with {id=} was not found."
+                )
+        response = ComponentLibraryResponse.from_db(library_row)
+        if include_component_texts:
+            assert response.root_folder
+            ComponentLibraryService._fill_component_texts_for_library_folder(
+                session=session, library_folder=response.root_folder
+            )
+        return response
 
     @staticmethod
     def _fill_component_texts_for_library_folder(
@@ -516,6 +509,7 @@ class ComponentLibraryService:
     def _prepare_new_library_and_publish_components(
         self,
         *,
+        session: orm.Session,
         library: ComponentLibrary,
         user_name: str,
         publish_components: bool = True,
@@ -523,7 +517,8 @@ class ComponentLibraryService:
         # Making copy, because we'll mutate the library (remove the text and spec)
         library = copy.deepcopy(library)
         # First let's publish all components in the library
-        service = PublishedComponentService(session_factory=self._session_factory)
+        service = PublishedComponentService()
+        session.rollback()
         component_count = 0
         for (
             component_ref
@@ -537,7 +532,9 @@ class ComponentLibraryService:
             if publish_components:
                 try:
                     publish_response = service.publish(
-                        component_ref=component_ref, user_name=user_name
+                        session=session,
+                        component_ref=component_ref,
+                        user_name=user_name,
                     )
                     digest = publish_response.digest
                 except errors.ItemAlreadyExistsError:
@@ -571,94 +568,98 @@ class ComponentLibraryService:
     def create(
         self,
         *,
+        session: orm.Session,
         library: ComponentLibrary,
         user_name: str,
         hide_from_search: bool = False,
     ) -> ComponentLibraryResponse:
+        session.rollback()
         component_library_row = self._prepare_new_library_and_publish_components(
+            session=session,
             library=library,
             user_name=user_name,
             publish_components=not hide_from_search,
         )
         component_library_row.hide_from_search = hide_from_search
-        with self._session_factory() as session:
-            session.add(component_library_row)
-            session.commit()
-            response = ComponentLibraryResponse.from_db(component_library_row)
-            return response
+        session.add(component_library_row)
+        session.commit()
+        response = ComponentLibraryResponse.from_db(component_library_row)
+        return response
 
-    def _initialize_empty_default_library_if_missing(self, *, published_by: str):
-        with self._session_factory() as session:
-            existing_default_component_library = session.get(
-                ComponentLibraryRow, DEFAULT_COMPONENT_LIBRARY_ID
-            )
-            if existing_default_component_library:
-                return
-            current_time = _get_current_time()
-            root_folder = ComponentLibraryFolder(
-                name=DEFAULT_COMPONENT_LIBRARY_NAME,
-            )
-            component_library_row = ComponentLibraryRow(
-                name=DEFAULT_COMPONENT_LIBRARY_NAME,
-                created_at=current_time,
-                updated_at=current_time,
-                published_by=published_by,
-                root_folder=root_folder.to_json_dict(),
-            )
-            component_library_row.id = DEFAULT_COMPONENT_LIBRARY_ID
-            session.add(component_library_row)
-            session.commit()
+    def _initialize_empty_default_library_if_missing(
+        self, *, session: orm.Session, published_by: str
+    ):
+        session.rollback()
+        existing_default_component_library = session.get(
+            ComponentLibraryRow, DEFAULT_COMPONENT_LIBRARY_ID
+        )
+        if existing_default_component_library:
+            return
+        current_time = _get_current_time()
+        root_folder = ComponentLibraryFolder(
+            name=DEFAULT_COMPONENT_LIBRARY_NAME,
+        )
+        component_library_row = ComponentLibraryRow(
+            name=DEFAULT_COMPONENT_LIBRARY_NAME,
+            created_at=current_time,
+            updated_at=current_time,
+            published_by=published_by,
+            root_folder=root_folder.to_json_dict(),
+        )
+        component_library_row.id = DEFAULT_COMPONENT_LIBRARY_ID
+        session.add(component_library_row)
+        session.commit()
 
     def replace(
         self,
         *,
+        session: orm.Session,
         id: str,
         library: ComponentLibrary,
         user_name: str,
         hide_from_search: bool | None = None,
     ) -> ComponentLibraryResponse:
-        with self._session_factory() as session:
-            component_library_row = session.get(ComponentLibraryRow, id)
-            if not component_library_row:
-                # Handling empty user Library
-                if id.startswith(USER_LIBRARY_ID_PREFIX):
-                    library_user_name = id.removeprefix(USER_LIBRARY_ID_PREFIX)
-                    component_library_row = ComponentLibraryRow.make_empty_user_library(
-                        library_user_name
-                    )
-                    session.add(component_library_row)
-                else:
-                    raise errors.ItemNotFoundError(
-                        f"ComponentLibrary with {id=} was not found."
-                    )
-            owners = [component_library_row.published_by] + (
-                component_library_row.extra_owners or []
-            )
-            if user_name not in owners:
-                raise errors.PermissionError(
-                    f"User {user_name} does not have permission to update the component library {id}. {owners=}"
+        session.rollback()
+        component_library_row = session.get(ComponentLibraryRow, id)
+        if not component_library_row:
+            # Handling empty user Library
+            if id.startswith(USER_LIBRARY_ID_PREFIX):
+                library_user_name = id.removeprefix(USER_LIBRARY_ID_PREFIX)
+                component_library_row = ComponentLibraryRow.make_empty_user_library(
+                    library_user_name
                 )
-            if hide_from_search is not None:
-                component_library_row.hide_from_search = hide_from_search
-            new_component_library_row = (
-                self._prepare_new_library_and_publish_components(
-                    library=library,
-                    user_name=user_name,
-                    publish_components=not component_library_row.hide_from_search,
+                session.add(component_library_row)
+            else:
+                raise errors.ItemNotFoundError(
+                    f"ComponentLibrary with {id=} was not found."
                 )
+        owners = [component_library_row.published_by] + (
+            component_library_row.extra_owners or []
+        )
+        if user_name not in owners:
+            raise errors.PermissionError(
+                f"User {user_name} does not have permission to update the component library {id}. {owners=}"
             )
-            # Should we auto-deprecate components that were removed from the library?
+        if hide_from_search is not None:
+            component_library_row.hide_from_search = hide_from_search
+        new_component_library_row = self._prepare_new_library_and_publish_components(
+            session=session,
+            library=library,
+            user_name=user_name,
+            publish_components=not component_library_row.hide_from_search,
+        )
+        # Should we auto-deprecate components that were removed from the library?
 
-            component_library_row.root_folder = new_component_library_row.root_folder
-            component_library_row.updated_at = new_component_library_row.updated_at
-            component_library_row.name = new_component_library_row.name
-            component_library_row.annotations = new_component_library_row.annotations
-            component_library_row.component_count = (
-                new_component_library_row.component_count
-            )
-            response = ComponentLibraryResponse.from_db(component_library_row)
-            session.commit()
-            return response
+        component_library_row.root_folder = new_component_library_row.root_folder
+        component_library_row.updated_at = new_component_library_row.updated_at
+        component_library_row.name = new_component_library_row.name
+        component_library_row.annotations = new_component_library_row.annotations
+        component_library_row.component_count = (
+            new_component_library_row.component_count
+        )
+        response = ComponentLibraryResponse.from_db(component_library_row)
+        session.commit()
+        return response
 
     @staticmethod
     def _recursively_iterate_over_all_component_refs_in_library_folder(
@@ -692,9 +693,6 @@ class UserComponentLibraryPinsResponse:
 
 
 class UserService:
-    def __init__(self, session_factory: typing.Callable[[], orm.Session]):
-        self._session_factory = session_factory
-
     @staticmethod
     def _get_default_pinned_library_ids_for_user_name(user_name: str):
         return [
@@ -704,36 +702,36 @@ class UserService:
 
     # ! User name must be set from Authentication and not exposed as an API parameter
     def get_component_library_pins(
-        self, *, user_name: str
+        self, *, session: orm.Session, user_name: str
     ) -> UserComponentLibraryPinsResponse:
-        with self._session_factory() as session:
-            user_row = session.get(UserRow, user_name)
-            if user_row and user_row.component_library_pin_ids is not None:
-                return UserComponentLibraryPinsResponse(
-                    component_library_ids=user_row.component_library_pin_ids
-                )
+        session.rollback()
+        user_row = session.get(UserRow, user_name)
+        if user_row and user_row.component_library_pin_ids is not None:
             return UserComponentLibraryPinsResponse(
-                component_library_ids=self._get_default_pinned_library_ids_for_user_name(
-                    user_name
-                ),
+                component_library_ids=user_row.component_library_pin_ids
             )
+        return UserComponentLibraryPinsResponse(
+            component_library_ids=self._get_default_pinned_library_ids_for_user_name(
+                user_name
+            ),
+        )
 
     def set_component_library_pins(
-        self, *, user_name: str, component_library_ids: list[str]
+        self, *, session: orm.Session, user_name: str, component_library_ids: list[str]
     ):
         # Security note: User can try to pin libraries they don't have access to.
         # But they won't be able to request their contents (when we implement visibility/access control).
         # TODO: Verify that library IDs actually exist.
-        with self._session_factory() as session:
-            user_row = session.get(UserRow, user_name)
-            if (
-                not user_row
-                and component_library_ids
-                == self._get_default_pinned_library_ids_for_user_name(user_name)
-            ):
-                return
-            if not user_row:
-                user_row = UserRow(id=user_name)
-                session.add(user_row)
-            user_row.component_library_pin_ids = component_library_ids
-            session.commit()
+        session.rollback()
+        user_row = session.get(UserRow, user_name)
+        if (
+            not user_row
+            and component_library_ids
+            == self._get_default_pinned_library_ids_for_user_name(user_name)
+        ):
+            return
+        if not user_row:
+            user_row = UserRow(id=user_name)
+            session.add(user_row)
+        user_row.component_library_pin_ids = component_library_ids
+        session.commit()

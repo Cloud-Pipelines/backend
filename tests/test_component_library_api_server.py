@@ -29,9 +29,7 @@ def _initialize_db_and_get_session_factory():
 
 def test_published_component_service():
     session_factory = _initialize_db_and_get_session_factory()
-    published_component_service = components_api.PublishedComponentService(
-        session_factory
-    )
+    published_component_service = components_api.PublishedComponentService()
     user_name = "user 1"
     component_name = "component 1"
     component_text = _make_component_text(component_name)
@@ -39,7 +37,7 @@ def test_published_component_service():
 
     # Test publishing
     published_component = published_component_service.publish(
-        component_ref=component_ref, user_name=user_name
+        session=session_factory(), component_ref=component_ref, user_name=user_name
     )
     assert published_component.digest
     assert published_component.published_by == user_name
@@ -48,64 +46,82 @@ def test_published_component_service():
     assert published_component.superseded_by == None
 
     # Test listing
-    all_published_components = published_component_service.list().published_components
+    all_published_components = published_component_service.list(
+        session=session_factory()
+    ).published_components
     assert len(all_published_components) == 1
 
     # Test component search by digest
     assert (
         len(
             published_component_service.list(
-                digest=published_component.digest
+                session=session_factory(), digest=published_component.digest
             ).published_components
         )
         == 1
     )
-    assert len(published_component_service.list(digest="XXX").published_components) == 0
+    assert (
+        len(
+            published_component_service.list(
+                session=session_factory(), digest="XXX"
+            ).published_components
+        )
+        == 0
+    )
 
     # Test component search by name substring
     filtered_published_components_1 = published_component_service.list(
-        name_substring="comp"
+        session=session_factory(), name_substring="comp"
     ).published_components
     assert len(filtered_published_components_1) == 1
     filtered_published_components_2 = published_component_service.list(
-        name_substring="XXX"
+        session=session_factory(), name_substring="XXX"
     ).published_components
     assert len(filtered_published_components_2) == 0
 
     # Test updating
     published_component_2 = published_component_service.update(
-        digest=published_component.digest, user_name=user_name, deprecated=True
+        session=session_factory(),
+        digest=published_component.digest,
+        user_name=user_name,
+        deprecated=True,
     )
     assert published_component_2.deprecated == True
 
     with pytest.raises(errors.ItemNotFoundError):
         published_component_service.update(
-            digest=published_component.digest, user_name="XXX", deprecated=True
+            session=session_factory(),
+            digest=published_component.digest,
+            user_name="XXX",
+            deprecated=True,
         )
 
     # Test listing deprecated components
-    all_published_components_2 = published_component_service.list().published_components
+    all_published_components_2 = published_component_service.list(
+        session=session_factory()
+    ).published_components
     assert len(all_published_components_2) == 0
     all_published_components_3 = published_component_service.list(
-        include_deprecated=True
+        session=session_factory(), include_deprecated=True
     ).published_components
     assert len(all_published_components_3) == 1
 
 
 def test_component_library_service():
     session_factory = _initialize_db_and_get_session_factory()
-    published_component_service = components_api.PublishedComponentService(
-        session_factory
-    )
-    user_service = components_api.UserService(session_factory)
-    component_library_service = components_api.ComponentLibraryService(session_factory)
+    session_factory2 = _initialize_db_and_get_session_factory()
+    published_component_service = components_api.PublishedComponentService()
+    user_service = components_api.UserService()
+    component_library_service = components_api.ComponentLibraryService()
     default_library_publisher = "Admin user"
     component_library_service._initialize_empty_default_library_if_missing(
-        published_by=default_library_publisher
+        session=session_factory(), published_by=default_library_publisher
     )
 
     # Test: The list of libraries contains the built-in default library
-    libraries_1 = component_library_service.list().component_libraries
+    libraries_1 = component_library_service.list(
+        session=session_factory()
+    ).component_libraries
     assert len(libraries_1) == 1
     assert libraries_1[0].id == components_api.DEFAULT_COMPONENT_LIBRARY_ID
     assert libraries_1[0].name == components_api.DEFAULT_COMPONENT_LIBRARY_NAME
@@ -133,6 +149,7 @@ def test_component_library_service():
 
     # Test: Creating a new library
     library_2 = component_library_service.create(
+        session=session_factory(),
         library=components_api.ComponentLibrary(
             name=library_name,
             root_folder=library_folder,
@@ -159,7 +176,7 @@ def test_component_library_service():
 
     # Test: Test `get()`, `include_component_texts`
     library_3 = component_library_service.get(
-        id=library_2.id, include_component_texts=True
+        session=session_factory(), id=library_2.id, include_component_texts=True
     )
     assert library_3.root_folder.folders
     assert library_3.root_folder.folders[0].components
@@ -168,7 +185,7 @@ def test_component_library_service():
 
     # Test: Test that the library components got published
     published_components_list_4 = published_component_service.list(
-        name_substring=component_name
+        session=session_factory(), name_substring=component_name
     ).published_components
     assert published_components_list_4
     published_component_4 = published_components_list_4[0]
@@ -177,12 +194,14 @@ def test_component_library_service():
     assert published_component_4.published_by == user_name
 
     # Test: New library can be found in `list()` results
-    libraries_5 = component_library_service.list().component_libraries
+    libraries_5 = component_library_service.list(
+        session=session_factory()
+    ).component_libraries
     assert len(libraries_5) == 2
 
     # Test: New library can be found by name
     libraries_6 = component_library_service.list(
-        name_substring=library_name
+        session=session_factory(), name_substring=library_name
     ).component_libraries
     assert len(libraries_6) == 1
 
@@ -208,10 +227,14 @@ def test_component_library_service():
     )
     with pytest.raises(errors.PermissionError):
         component_library_service.replace(
-            id=library_2.id, library=library_request_7, user_name="XXX"
+            session=session_factory(),
+            id=library_2.id,
+            library=library_request_7,
+            user_name="XXX",
         )
 
     library_7 = component_library_service.replace(
+        session=session_factory(),
         id=library_2.id,
         library=library_request_7,
         user_name=user_name,
@@ -222,7 +245,9 @@ def test_component_library_service():
     user_library_id = components_api._get_component_library_id_for_user_name(
         user_name=user_name
     )
-    library_8 = component_library_service.get(id=user_library_id)
+    library_8 = component_library_service.get(
+        session=session_factory(), id=user_library_id
+    )
     assert library_8.id == user_library_id
     assert library_8.hide_from_search == True
     assert user_name in library_8.name
@@ -235,9 +260,13 @@ def test_component_library_service():
     )
     with pytest.raises(errors.PermissionError):
         component_library_service.replace(
-            id=user_library_id, library=library_request_9, user_name="XXX"
+            session=session_factory(),
+            id=user_library_id,
+            library=library_request_9,
+            user_name="XXX",
         )
     library_9 = component_library_service.replace(
+        session=session_factory(),
         id=user_library_id,
         library=library_request_9,
         user_name=user_name,
@@ -246,7 +275,7 @@ def test_component_library_service():
 
     # Test: Getting user library pins
     pins_10 = user_service.get_component_library_pins(
-        user_name=user_name
+        session=session_factory(), user_name=user_name
     ).component_library_ids
     assert len(pins_10) == 2
     assert components_api.DEFAULT_COMPONENT_LIBRARY_ID in pins_10
@@ -255,10 +284,10 @@ def test_component_library_service():
     # Test: Setting user library pins
     pins_11 = pins_10 + [library_2.id]
     user_service.set_component_library_pins(
-        user_name=user_name, component_library_ids=pins_11
+        session=session_factory(), user_name=user_name, component_library_ids=pins_11
     )
     pins_11b = user_service.get_component_library_pins(
-        user_name=user_name
+        session=session_factory(), user_name=user_name
     ).component_library_ids
     assert pins_11b == pins_11
 
