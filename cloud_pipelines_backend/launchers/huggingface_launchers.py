@@ -276,7 +276,7 @@ exit "$exit_code"
             # flavor=...,
         )
 
-        _logger.debug(f"Launched HF Job {job.id=}")
+        _logger.info(f"Launched HF Job {job.id=}, {job.url=}")
         launched_container = LaunchedHuggingFaceJobContainer(
             id=job.id,
             namespace=self._namespace,
@@ -392,7 +392,9 @@ class LaunchedHuggingFaceJobContainer(interfaces.LaunchedContainer):
     def launcher_error_message(self) -> str | None:
         if self._job.status.message:
             # TODO: Check what kind of messages this returns and when.
-            _logger.debug(f"{self._job.status.message=}")
+            _logger.info(
+                f"launcher_error_message: {self._id=}: {self._job.status.message=}"
+            )
             return self._job.status.message
         return None
 
@@ -406,7 +408,10 @@ class LaunchedHuggingFaceJobContainer(interfaces.LaunchedContainer):
                     .download_as_text()
                 )
             except Exception as ex:
-                _logger.warning(f"Error getting log from URI:", ex)
+                _logger.warning(
+                    f"get_log: {self._id=}: Error getting log from URI: {self._log_uri}",
+                    ex,
+                )
         return "\n".join(
             self._get_api_client().fetch_job_logs(
                 job_id=self._id,
