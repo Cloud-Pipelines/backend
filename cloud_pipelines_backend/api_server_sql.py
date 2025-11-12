@@ -793,7 +793,7 @@ class ExecutionNodesApiService_Sql:
     def stream_container_execution_log(
         self,
         session: orm.Session,
-        container_launcher: "launcher_interfaces.ContainerTaskLauncher",
+        container_launcher: "launcher_interfaces.ContainerTaskLauncher[launcher_interfaces.LaunchedContainer]",
         execution_id: bts.IdType,
     ) -> typing.Iterator[str]:
         execution = session.get(bts.ExecutionNode, execution_id)
