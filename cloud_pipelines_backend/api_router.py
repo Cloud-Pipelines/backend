@@ -78,6 +78,11 @@ def _setup_routes_internal(
     user_details_getter: typing.Callable[..., UserDetails],
     container_launcher_for_log_streaming: "launcher_interfaces.ContainerTaskLauncher[launcher_interfaces.LaunchedContainer] | None" = None,
     lifespan: starlette.types.Lifespan[typing.Any] | None = None,
+    pipeline_run_creation_hook: (
+        typing.Callable[..., typing.Any]
+        | typing.Callable[..., abc.Iterator[typing.Any]]
+        | None
+    ) = None,
 ):
     # We request `app: fastapi.FastAPI` instead of just returning the router
     # because we want to add exception handler which is only supported for `FastAPI`.
@@ -265,10 +270,15 @@ def _setup_routes_internal(
         annotation_metadata=get_user_name_dependency,
     )
 
+    pipeline_run_creation_dependencies = ensure_user_can_write_dependencies
+    if pipeline_run_creation_hook:
+        pipeline_run_creation_dependencies += [
+            fastapi.Depends(pipeline_run_creation_hook)
+        ]
     router.post(
         "/api/pipeline_runs/",
         tags=["pipelineRuns"],
-        dependencies=ensure_user_can_write_dependencies,
+        dependencies=pipeline_run_creation_dependencies,
         **default_config,
     )(create_run_func)
 
